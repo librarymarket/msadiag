@@ -1,0 +1,29 @@
+{
+    "name": "librarymarket/mstt",
+    "description": "Message Submission Test Tool (mstt) facilitates testing the compatibility of third party message submission agents.",
+    "homepage": "https://github.com/librarymarket/mstt",
+    "keywords": ["agent", "esmtp", "mail", "message", "smtp", "submission", "test", "tool"],
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Clay Freeman",
+            "email": "clay@librarymarket.com",
+            "homepage": "https://www.librarymarket.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true,
+        "discard-changes": true
+    },
+    "autoload": {
+        "psr-4": {
+            "LibraryMarket\\mstt\\": "src"
+        }
+    },
+    "require": {
+        "php": ">=8.1"
+    }
+}
