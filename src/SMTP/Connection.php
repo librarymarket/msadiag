@@ -26,6 +26,13 @@ class Connection {
   public readonly string $address;
 
   /**
+   * The type of connection.
+   *
+   * @var \LibraryMarket\mstt\SMTP\ConnectionType
+   */
+  public readonly ConnectionType $connectionType;
+
+  /**
    * An associative array representing the extensions supported by the server.
    *
    * The array keys consist of extension keywords (normalized), while the array
@@ -55,14 +62,14 @@ class Connection {
   /**
    * The socket used to communicate with the message submission agent.
    *
-   * @var resource
+   * @var resource|null
    */
   protected $socket;
 
   /**
    * The stream context to use when opening a stream socket client.
    *
-   * @var resource
+   * @var resource|null
    */
   protected $streamContext;
 
@@ -132,6 +139,9 @@ class Connection {
     if (\is_resource($this->socket)) {
       throw new \LogicException('There is already an active connection');
     }
+
+    $error_code = 0;
+    $error_message = '';
 
     // Attempt to open a stream socket client.
     if (!$socket = \stream_socket_client($this->getClientAddress(), context: $this->getStreamContext(), error_code: $error_code, error_message: $error_message, timeout: $connect_timeout)) {
@@ -242,6 +252,8 @@ class Connection {
    * twice to ensure that crypto-exclusive extensions can be probed.
    */
   public function probe(): void {
+    $extensions = [];
+
     // Attempt to process the initial greeting sent by the server on connection.
     $this->processServerGreeting();
 
@@ -273,16 +285,14 @@ class Connection {
     }
 
     // Store the remote server's supported extensions.
-    $this->extensions ??= $extensions ?? [];
+    $this->extensions ??= $extensions;
   }
 
   /**
    * Attempt to process the remote server's response to the client greeting.
    *
    * @return array
-   *   An associative array of extensions supported by the remote server. The
-   *   array keys consist of extension keywords while the array values are
-   *   unprocessed extension parameters.
+   *   An associative array of extensions supported by the remote server.
    */
   protected function processClientGreetingResponse(): array {
     $extensions = [];
@@ -293,20 +303,22 @@ class Connection {
     catch (ReadException $e) {
     }
 
-    if (!isset($response)) {
+    if (!isset($response) || !isset($response->code)) {
       throw new ClientGreetingException('The remote server did not send a valid response to the client greeting');
     }
     if ($response->code !== 250) {
-      throw new ClientGreetingException('The client greeting resulted in an unsuccessful response from the remote server: ' . \implode("\r\n", $response->lines), $response->code);
+      throw new ClientGreetingException('The client greeting resulted in an unsuccessful response from the remote server: ' . \implode("\r\n", $response->lines ?? []), $response->code);
     }
 
-    // Discard the first line of the response and reset the extension list.
-    \array_shift($response->lines);
+    if (isset($response->lines) && is_array($response->lines)) {
+      // Discard the first line of the response and reset the extension list.
+      \array_shift($response->lines);
 
-    // Build an associative array of extensions supported by the server.
-    foreach ($response->lines as $line) {
-      if ($extension = \preg_split('/\\s+/', $line)) {
-        $extensions[\strtoupper(\array_shift($extension))] = $extension;
+      // Build an associative array of extensions supported by the server.
+      foreach ($response->lines as $line) {
+        if ($extension = \preg_split('/\\s+/', $line)) {
+          $extensions[\strtoupper(\array_shift($extension))] = $extension;
+        }
       }
     }
 
@@ -331,15 +343,17 @@ class Connection {
     }
 
     // Ensure that the server sent a valid greeting before continuing.
-    if (!isset($greeting)) {
+    if (!isset($greeting) || !isset($greeting->code)) {
       throw new ServerGreetingException('The remote server did not initiate the connection with a valid greeting');
     }
     if ($greeting->code !== 220) {
-      throw new ServerGreetingException('The remote server initiated the connection with an invalid greeting');
+      throw new ServerGreetingException('The remote server initiated the connection with a bad greeting: ' . \implode("\r\n", $greeting->lines ?? []), $greeting->code);
     }
 
-    // Store the remote server's self-reported identity.
-    $this->identity ??= \preg_replace('/\\s.*/', '', \array_shift($greeting->lines) ?? '');
+    if (isset($greeting->lines) && is_array($greeting->lines)) {
+      // Store the remote server's self-reported identity.
+      $this->identity ??= \preg_replace('/\\s.*/', '', \array_shift($greeting->lines) ?? '');
+    }
   }
 
   /**
@@ -361,7 +375,7 @@ class Connection {
       throw new ReadException('Unable to read from the underlying stream socket');
     }
 
-    return \preg_replace('/\\r?\\n$/', '', $result);
+    return \preg_replace('/\\r?\\n$/', '', $result) ?? '';
   }
 
   /**
@@ -419,13 +433,13 @@ class Connection {
     }
 
     // Check if the server did not respond to our request to start crypto.
-    if (!isset($response)) {
+    if (!isset($response) || !isset($response->code)) {
       throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: the server did not reply to the STARTTLS command');
     }
 
     // Check if the server responded with an unsuccessful reply code.
     if ($response->code !== 220) {
-      throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: ' . \implode("\r\n", $response->lines), $response->code);
+      throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: ' . \implode("\r\n", $response->lines ?? []), $response->code);
     }
 
     try {
@@ -440,7 +454,7 @@ class Connection {
       // If our custom error handler is not encountered, we should still check
       // for a FALSE return value and throw a generic exception if crypto could
       // not be enabled for the stream socket.
-      if (!@\stream_socket_enable_crypto($this->socket, TRUE, \STREAM_CRYPTO_METHOD_ANY_CLIENT)) {
+      if (!\is_resource($this->socket) || !@\stream_socket_enable_crypto($this->socket, TRUE, \STREAM_CRYPTO_METHOD_ANY_CLIENT)) {
         throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket');
       }
     }
