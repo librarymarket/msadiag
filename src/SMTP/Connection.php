@@ -255,6 +255,21 @@ class Connection {
    *
    * When using the STARTTLS connection type, extension negotiation will occur
    * twice to ensure that crypto-exclusive extensions can be probed.
+   *
+   * Crypto-related exceptions are only thrown when using STARTTLS.
+   *
+   * @throws \LibraryMarket\mstt\SMTP\Exception\ClientGreetingException
+   *   If the remote server did not send a valid response to the client
+   *   greeting, or if the client greeting resulted in a bad response.
+   * @throws \LibraryMarket\mstt\SMTP\Exception\CryptoException
+   *   If crypto could not be enabled on the underlying stream socket.
+   * @throws \LibraryMarket\mstt\SMTP\Exception\ServerGreetingException
+   *   If the remote server did not initiate the connection with a greeting, or
+   *   if the remote server initiated the connection with an invalid greeting.
+   * @throws \LibraryMarket\mstt\SMTP\Exception\WriteException
+   *   If unable to write to the underlying stream socket.
+   * @throws \RuntimeException
+   *   If there is currently no active connection.
    */
   public function probe(): void {
     $extensions = [];
@@ -396,6 +411,11 @@ class Connection {
    *
    * @param \LibraryMarket\mstt\SMTP\ClientGreetingType $type
    *   The type of client greeting to send to the remote server.
+   *
+   * @throws \LibraryMarket\mstt\SMTP\Exception\WriteException
+   *   If unable to write to the underlying stream socket.
+   * @throws \RuntimeException
+   *   If there is currently no active connection.
    */
   protected function sendClientGreeting(ClientGreetingType $type): void {
     $this->write("{$type->value} librarymarket.com");
