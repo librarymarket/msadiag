@@ -41,14 +41,30 @@ class Connection {
    * When the STARTTLS connection type is used, the extensions in this array
    * represent the available extensions after crypto has been enabled.
    *
+   * This property is not initialized until the message submission agent has
+   * been probed for its supported extensions.
+   *
+   * @see ::probe()
+   *   Invoke this method to initialize this property.
+   *
    * @var array
+   *
+   * @phpstan-ignore-next-line
    */
   public readonly array $extensions;
 
   /**
    * The self-reported identity of the message submission agent.
    *
+   * This property is not initialized until the message submission agent has
+   * been probed for its self-reported identity.
+   *
+   * @see ::probe()
+   *   Invoke this method to initialize this property.
+   *
    * @var string
+   *
+   * @phpstan-ignore-next-line
    */
   public readonly string $identity;
 
@@ -321,6 +337,7 @@ class Connection {
     }
 
     // Store the remote server's supported extensions.
+    // @phpstan-ignore-next-line
     $this->extensions ??= $extensions;
   }
 
@@ -335,6 +352,8 @@ class Connection {
    *
    * @return array
    *   An associative array of extensions supported by the remote server.
+   *
+   * @phpstan-ignore-next-line
    */
   protected function processClientGreetingResponse(): array {
     $extensions = [];
@@ -396,6 +415,7 @@ class Connection {
 
     if (isset($greeting->lines) && is_array($greeting->lines)) {
       // Store the remote server's self-reported identity.
+      // @phpstan-ignore-next-line
       $this->identity ??= \preg_replace('/\\s.*/', '', \array_shift($greeting->lines) ?? '');
     }
   }
