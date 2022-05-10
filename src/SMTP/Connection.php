@@ -198,6 +198,44 @@ class Connection {
   }
 
   /**
+   * Attempt to read a command response from the remote server.
+   *
+   * @return object
+   *   A first class object with the following properties:
+   *   - code: the reply code for the response.
+   *   - lines: an array of strings that represent the lines of the response.
+   */
+  protected function getResponse(): object {
+    $result = (object) [
+      'code' => NULL,
+      'lines' => [],
+    ];
+
+    // Define an anonymous function used to parse reply lines from the server.
+    $parse = function ($response) {
+      $expr = '/^(?P<code>[2-5][0-5][0-9])(?P<type>[- ])(?P<textstring>.*)$/';
+
+      if (\preg_match($expr, $response, $matches)) {
+        return \array_filter($matches, 'is_string', \ARRAY_FILTER_USE_KEY);
+      }
+
+      return [];
+    };
+
+    do {
+      // Attempt to parse a reply line from the underlying stream socket.
+      if ($response = $parse($this->read())) {
+        $result->code ??= intval($response['code']);
+        $result->lines[] = $response['textstring'];
+      }
+
+      // Continue reading while the server indicates there are remaining lines.
+    } while (($response['type'] ?? NULL) === '-');
+
+    return $result;
+  }
+
+  /**
    * Probe the message submission agent for its identity and extensions.
    *
    * When using the STARTTLS connection type, extension negotiation will occur
@@ -223,17 +261,11 @@ class Connection {
     if ($this->connectionType === ConnectionType::STARTTLS) {
       // Ensure that the remote server supports the STARTTLS extension.
       if (!\array_key_exists('STARTTLS', $extensions)) {
-        throw new CryptoException('The remote server does not support the STARTTLS extension');
+        throw new CryptoException('The remote server does not support the STARTTLS extension to SMTP');
       }
 
-      // Inform the remote server that we want to perform crypto negotiation.
-      $this->write('STARTTLS');
-      $this->getResponse();
-
-      // Attempt to enable crypto on the connection.
-      if (!\stream_socket_enable_crypto($this->socket, TRUE, \STREAM_CRYPTO_METHOD_ANY_CLIENT)) {
-        throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket');
-      }
+      // Attempt to enable crypto on the underlying stream socket.
+      $this->streamEnableCrypto();
 
       // Renegotiate extension support after enabling crypto.
       $this->sendClientGreeting(ClientGreetingType::Extended);
@@ -333,44 +365,6 @@ class Connection {
   }
 
   /**
-   * Attempt to read a command response from the remote server.
-   *
-   * @return object
-   *   A first class object with the following properties:
-   *   - code: the reply code for the response.
-   *   - lines: an array of strings that represent the lines of the response.
-   */
-  protected function getResponse(): object {
-    $result = (object) [
-      'code' => NULL,
-      'lines' => [],
-    ];
-
-    // Define an anonymous function used to parse reply lines from the server.
-    $parse = function ($response) {
-      $expr = '/^(?P<code>[2-5][0-5][0-9])(?P<type>[- ])(?P<textstring>.*)$/';
-
-      if (\preg_match($expr, $response, $matches)) {
-        return \array_filter($matches, 'is_string', \ARRAY_FILTER_USE_KEY);
-      }
-
-      return [];
-    };
-
-    do {
-      // Attempt to parse a reply line from the underlying stream socket.
-      if ($response = $parse($this->read())) {
-        $result->code ??= intval($response['code']);
-        $result->lines[] = $response['textstring'];
-      }
-
-      // Continue reading while the server indicates there are remaining lines.
-    } while (($response['type'] ?? NULL) === '-');
-
-    return $result;
-  }
-
-  /**
    * Attempt to send the client greeting to the remote server.
    *
    * @param \LibraryMarket\mstt\SMTP\ClientGreetingType $type
@@ -397,6 +391,62 @@ class Connection {
     }
 
     $this->streamContext = $context;
+  }
+
+  /**
+   * Perform crypto negotiation with the remote server using STARTTLS.
+   *
+   * At the time of writing, there isn't a clean way to retrieve OpenSSL errors
+   * that occur when attempting to enable crypto on a stream socket.
+   *
+   * For now, a custom error handler is used during the execution of this method
+   * as a workaround to intercept any errors that occur when calling
+   * \stream_socket_enable_crypto().
+   *
+   * @throws \LibraryMarket\mstt\SMTP\Exception\CryptoException
+   *   If crypto could not be enabled on the underlying stream socket.
+   */
+  protected function streamEnableCrypto(): void {
+    try {
+      // Inform the remote server that we want to perform crypto negotiation.
+      $this->write('STARTTLS');
+
+      // Attempt to read a response from the remote server to determine if
+      // crypto negotiation can begin or if an error occurred.
+      $response = $this->getResponse();
+    }
+    catch (ReadException | WriteException $e) {
+    }
+
+    // Check if the server did not respond to our request to start crypto.
+    if (!isset($response)) {
+      throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: the server did not reply to the STARTTLS command');
+    }
+
+    // Check if the server responded with an unsuccessful reply code.
+    if ($response->code !== 220) {
+      throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: ' . implode("\r\n", $response->lines), $response->code);
+    }
+
+    try {
+      // Set a custom error handler to intercept any errors that occur when
+      // calling \stream_socket_enable_crypto().
+      \set_error_handler(function (int $errno, string $errstr) {
+        throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: ' . $errstr, $errno);
+      });
+
+      // Attempt to enable crypto on the underlying stream socket.
+      //
+      // If our custom error handler is not encountered, we should still check
+      // for a FALSE return value and throw a generic exception if crypto could
+      // not be enabled for the stream socket.
+      if (!@\stream_socket_enable_crypto($this->socket, TRUE, \STREAM_CRYPTO_METHOD_ANY_CLIENT)) {
+        throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket');
+      }
+    }
+    finally {
+      \restore_error_handler();
+    }
   }
 
   /**
