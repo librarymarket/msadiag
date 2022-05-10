@@ -178,10 +178,10 @@ class Connection {
   }
 
   /**
-   * Get the address string to use when calling stream_socket_client().
+   * Get the address string to use when calling \stream_socket_client().
    *
    * @return string
-   *   The address string to use when calling stream_socket_client().
+   *   The address string to use when calling \stream_socket_client().
    */
   public function getClientAddress(): string {
     $address = $this->address;
@@ -216,7 +216,7 @@ class Connection {
       $expr = '/^(?P<code>[2-5][0-5][0-9])(?P<type>[- ])(?P<textstring>.*)$/';
 
       if (\preg_match($expr, $response, $matches)) {
-        return \array_filter($matches, 'is_string', \ARRAY_FILTER_USE_KEY);
+        return \array_filter($matches, \is_string(...), \ARRAY_FILTER_USE_KEY);
       }
 
       return [];
@@ -225,7 +225,7 @@ class Connection {
     do {
       // Attempt to parse a reply line from the underlying stream socket.
       if ($response = $parse($this->read())) {
-        $result->code ??= intval($response['code']);
+        $result->code ??= \intval($response['code']);
         $result->lines[] = $response['textstring'];
       }
 
@@ -297,7 +297,7 @@ class Connection {
       throw new ClientGreetingException('The remote server did not send a valid response to the client greeting');
     }
     if ($response->code !== 250) {
-      throw new ClientGreetingException('The client greeting resulted in an unsuccessful response from the remote server: ' . implode("\r\n", $response->lines), $response->code);
+      throw new ClientGreetingException('The client greeting resulted in an unsuccessful response from the remote server: ' . \implode("\r\n", $response->lines), $response->code);
     }
 
     // Discard the first line of the response and reset the extension list.
@@ -339,7 +339,7 @@ class Connection {
     }
 
     // Store the remote server's self-reported identity.
-    $this->identity ??= preg_replace('/\\s.*/', '', array_shift($greeting->lines));
+    $this->identity ??= \preg_replace('/\\s.*/', '', \array_shift($greeting->lines) ?? '');
   }
 
   /**
@@ -371,7 +371,7 @@ class Connection {
    *   The type of client greeting to send to the remote server.
    */
   protected function sendClientGreeting(ClientGreetingType $type): void {
-    $this->write("{$type->value} mstt.librarymarket.com");
+    $this->write("{$type->value} librarymarket.com");
   }
 
   /**
@@ -425,7 +425,7 @@ class Connection {
 
     // Check if the server responded with an unsuccessful reply code.
     if ($response->code !== 220) {
-      throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: ' . implode("\r\n", $response->lines), $response->code);
+      throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: ' . \implode("\r\n", $response->lines), $response->code);
     }
 
     try {
