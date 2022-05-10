@@ -13,6 +13,20 @@ use LibraryMarket\mstt\SMTP\Exception\WriteException;
 
 /**
  * Facilitates connecting to a message submission agent via (E)SMTP.
+ *
+ * The typical workflow for using this class is as follows:
+ * 1. Construct the object, specifying the connection details of the message
+ *    submission agent. Optionally specify a stream context.
+ * 2. Invoke ::connect() which will establish either a plain-text or TLS
+ *    connection based on the connection type specified during construction.
+ * 3. Invoke ::probe() which will probe the remote server for:
+ *    - Its self-reported identity (found in the server greeting)
+ *    - Its supported ESMTP extensions (if any)
+ *    If STARTTLS was specified as the connection type, crypto will be enabled
+ *    and extension support will be probed again once crypto is negotiated.
+ *
+ * After the message submission agent has been probed, details about it will be
+ * available in the public properties of this class.
  */
 class Connection {
 
