@@ -120,6 +120,11 @@ class Connection {
    * Calling this method will incur no read/write operations on the data stream.
    * TLS negotiation may occur if the TLS connection type was specified.
    *
+   * At the time of writing, there isn't a clean way to retrieve OpenSSL errors.
+   * For now, a custom error handler is used during the execution of this method
+   * as a workaround to intercept any errors that occur when calling
+   * \stream_socket_client().
+   *
    * @param float $connect_timeout
    *   The timeout period in seconds to use while attempting to establish a
    *   connection to the message submission agent (default: 3.0).
@@ -140,12 +145,23 @@ class Connection {
       throw new \LogicException('There is already an active connection');
     }
 
-    $error_code = 0;
-    $error_message = '';
+    // Set a custom error handler to intercept any errors that occur when
+    // calling \stream_socket_client().
+    \set_error_handler(function (int $errno, string $errstr) {
+      throw new ConnectException('Unable to connect to the message submission agent: ' . $errstr, $errno);
+    });
 
-    // Attempt to open a stream socket client.
-    if (!$socket = \stream_socket_client($this->getClientAddress(), context: $this->getStreamContext(), error_code: $error_code, error_message: $error_message, timeout: $connect_timeout)) {
-      throw new ConnectException('Unable to connect to the message submission agent: ' . $error_message, $error_code);
+    try {
+      $error_code = 0;
+      $error_message = '';
+
+      // Attempt to open a stream socket client.
+      if (!$socket = @\stream_socket_client($this->getClientAddress(), context: $this->getStreamContext(), error_code: $error_code, error_message: $error_message, timeout: $connect_timeout)) {
+        throw new ConnectException('Unable to connect to the message submission agent: ' . $error_message, $error_code);
+      }
+    }
+    finally {
+      \restore_error_handler();
     }
 
     // Attempt to configure the socket.
@@ -444,10 +460,9 @@ class Connection {
    * Perform crypto negotiation with the remote server using STARTTLS.
    *
    * At the time of writing, there isn't a clean way to retrieve OpenSSL errors
-   * that occur when attempting to enable crypto on a stream socket.
-   *
-   * For now, a custom error handler is used during the execution of this method
-   * as a workaround to intercept any errors that occur when calling
+   * that occur when attempting to enable crypto on a stream socket. For now, a
+   * custom error handler is used during the execution of this method as a
+   * workaround to intercept any errors that occur when calling
    * \stream_socket_enable_crypto().
    *
    * @throws \LibraryMarket\mstt\SMTP\Exception\CryptoException
