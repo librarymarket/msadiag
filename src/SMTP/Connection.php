@@ -170,24 +170,6 @@ class Connection {
   }
 
   /**
-   * Get the stream context to use when opening a stream socket client.
-   *
-   * @see \stream_context_get_default()
-   *   The default stream context is used for lazy initialization of the
-   *   underlying stream context upon first invocation.
-   *
-   * @return resource
-   *   The stream context to use when opening a stream socket client.
-   */
-  public function getStreamContext() {
-    if (!isset($this->streamContext)) {
-      $this->streamContext = \stream_context_get_default();
-    }
-
-    return $this->streamContext;
-  }
-
-  /**
    * Get the address string to use when calling \stream_socket_client().
    *
    * @return string
@@ -210,9 +192,14 @@ class Connection {
   /**
    * Attempt to read a command response from the remote server.
    *
+   * @throws \LibraryMarket\mstt\SMTP\Exception\ReadException
+   *   If unable to read from the underlying stream socket.
+   * @throws \RuntimeException
+   *   If there is currently no active connection.
+   *
    * @return object
    *   A first class object with the following properties:
-   *   - code: the reply code for the response.
+   *   - code: the reply code for the response (int|null).
    *   - lines: an array of strings that represent the lines of the response.
    */
   protected function getResponse(): object {
@@ -243,6 +230,24 @@ class Connection {
     } while (($response['type'] ?? NULL) === '-');
 
     return $result;
+  }
+
+  /**
+   * Get the stream context to use when opening a stream socket client.
+   *
+   * @see \stream_context_get_default()
+   *   The default stream context is used for lazy initialization of the
+   *   underlying stream context upon first invocation.
+   *
+   * @return resource
+   *   The stream context to use when opening a stream socket client.
+   */
+  public function getStreamContext() {
+    if (!isset($this->streamContext)) {
+      $this->streamContext = \stream_context_get_default();
+    }
+
+    return $this->streamContext;
   }
 
   /**
@@ -291,6 +296,12 @@ class Connection {
   /**
    * Attempt to process the remote server's response to the client greeting.
    *
+   * @throws \LibraryMarket\mstt\SMTP\Exception\ClientGreetingException
+   *   If the remote server did not send a valid response to the client
+   *   greeting, or if the client greeting resulted in a bad response.
+   * @throws \RuntimeException
+   *   If there is currently no active connection.
+   *
    * @return array
    *   An associative array of extensions supported by the remote server.
    */
@@ -307,7 +318,7 @@ class Connection {
       throw new ClientGreetingException('The remote server did not send a valid response to the client greeting');
     }
     if ($response->code !== 250) {
-      throw new ClientGreetingException('The client greeting resulted in an unsuccessful response from the remote server: ' . \implode("\r\n", $response->lines ?? []), $response->code);
+      throw new ClientGreetingException('The client greeting resulted in a bad response from the remote server: ' . \implode("\r\n", $response->lines ?? []), $response->code);
     }
 
     if (isset($response->lines) && is_array($response->lines)) {
@@ -334,6 +345,8 @@ class Connection {
    * @throws \LibraryMarket\mstt\SMTP\Exception\ServerGreetingException
    *   If the remote server did not initiate the connection with a greeting, or
    *   if the remote server initiated the connection with an invalid greeting.
+   * @throws \RuntimeException
+   *   If there is currently no active connection.
    */
   protected function processServerGreeting(): void {
     try {
@@ -419,6 +432,8 @@ class Connection {
    *
    * @throws \LibraryMarket\mstt\SMTP\Exception\CryptoException
    *   If crypto could not be enabled on the underlying stream socket.
+   * @throws \RuntimeException
+   *   If there is currently no active connection.
    */
   protected function streamEnableCrypto(): void {
     try {
@@ -437,7 +452,7 @@ class Connection {
       throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: the server did not reply to the STARTTLS command');
     }
 
-    // Check if the server responded with an unsuccessful reply code.
+    // Check if the server responded with a bad reply code.
     if ($response->code !== 220) {
       throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: ' . \implode("\r\n", $response->lines ?? []), $response->code);
     }
