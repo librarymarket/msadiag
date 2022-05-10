@@ -98,24 +98,33 @@ class Connection {
    *   The port used by the message submission agent.
    * @param \LibraryMarket\mstt\SMTP\ConnectionType $connection_type
    *   The type of connection to establish to the message submission agent.
+   * @param resource|null $stream_context
+   *   The stream context to use for new connections.
    *
    * @throws \InvalidArgumentException
-   *   If the supplied address is neither a valid IP address or hostname.
-   *   Currently, only IPv4 and IPv6 addresses are supported.
+   *   If the supplied argument is not a valid stream context resource.
    * @throws \DomainException
    *   If the supplied port is not a valid port number.
+   * @throws \UnexpectedValueException
+   *   If the supplied address is neither a valid IP address or hostname.
+   *   Currently, only IPv4 and IPv6 addresses are supported.
    */
-  public function __construct(string $address, int $port = 587, ConnectionType $connection_type = ConnectionType::STARTTLS) {
+  public function __construct(string $address, int $port = 587, ConnectionType $connection_type = ConnectionType::STARTTLS, $stream_context = NULL) {
     $flags = \FILTER_FLAG_IPV4 | \FILTER_FLAG_IPV6;
 
     // Check that a valid IP address or hostname was supplied.
     if (!\filter_var($address, \FILTER_VALIDATE_IP, $flags) && !\filter_var(\gethostbyname($address), \FILTER_VALIDATE_IP, $flags)) {
-      throw new \InvalidArgumentException('The supplied SMTP server address is invalid: ' . $address);
+      throw new \UnexpectedValueException('The supplied SMTP server address is invalid: ' . $address);
     }
 
     // Check that a valid port was supplied.
     if ($port < 1 || $port > 65_535) {
       throw new \DomainException('The supplied SMTP port is invalid');
+    }
+
+    // Use the supplied stream context (if available).
+    if (isset($stream_context)) {
+      $this->setStreamContext($stream_context);
     }
 
     $this->connectionType = $connection_type;
