@@ -4,9 +4,12 @@ declare(strict_types = 1);
 
 namespace LibraryMarket\mstt\SMTP;
 
+use LibraryMarket\mstt\SMTP\Exception\ClientGreetingException;
 use LibraryMarket\mstt\SMTP\Exception\ConnectException;
-use LibraryMarket\mstt\SMTP\Exception\GreetingException;
+use LibraryMarket\mstt\SMTP\Exception\CryptoException;
 use LibraryMarket\mstt\SMTP\Exception\ReadException;
+use LibraryMarket\mstt\SMTP\Exception\ServerGreetingException;
+use LibraryMarket\mstt\SMTP\Exception\WriteException;
 
 /**
  * Facilitates connecting to a message submission agent via (E)SMTP.
@@ -21,6 +24,19 @@ class Connection {
    * @var string
    */
   public readonly string $address;
+
+  /**
+   * An associative array representing the extensions supported by the server.
+   *
+   * The array keys consist of extension keywords (normalized), while the array
+   * values consist of a list of unprocessed extension parameters.
+   *
+   * When the STARTTLS connection type is used, the extensions in this array
+   * represent the available extensions after crypto has been enabled.
+   *
+   * @var array
+   */
+  public readonly array $extensions;
 
   /**
    * The self-reported identity of the message submission agent.
@@ -59,8 +75,6 @@ class Connection {
    *   The port used by the message submission agent.
    * @param \LibraryMarket\mstt\SMTP\ConnectionType $connection_type
    *   The type of connection to establish to the message submission agent.
-   * @param resource|null $stream_context
-   *   An optional stream context to use for the internal stream socket client.
    *
    * @throws \InvalidArgumentException
    *   If the supplied address is neither a valid IP address or hostname.
@@ -68,7 +82,7 @@ class Connection {
    * @throws \DomainException
    *   If the supplied port is not a valid port number.
    */
-  public function __construct(string $address, int $port = 587, ConnectionType $connection_type = ConnectionType::STARTTLS, $stream_context = NULL) {
+  public function __construct(string $address, int $port = 587, ConnectionType $connection_type = ConnectionType::STARTTLS) {
     $flags = \FILTER_FLAG_IPV4 | \FILTER_FLAG_IPV6;
 
     // Check that a valid IP address or hostname was supplied.
@@ -79,11 +93,6 @@ class Connection {
     // Check that a valid port was supplied.
     if ($port < 1 || $port > 65_535) {
       throw new \DomainException('The supplied SMTP port is invalid');
-    }
-
-    // Attempt to set the supplied stream context.
-    if (isset($stream_context)) {
-      $this->setStreamContext($stream_context);
     }
 
     $this->connectionType = $connection_type;
@@ -191,34 +200,118 @@ class Connection {
   /**
    * Probe the message submission agent for its identity and extensions.
    *
-   * @throws \GreetingException
-   *   If the remote server initiated the connection with an invalid greeting,
-   *   or if no greeting was sent by the remote server.
+   * When using the STARTTLS connection type, extension negotiation will occur
+   * twice to ensure that crypto-exclusive extensions can be probed.
    */
   public function probe(): void {
+    // Attempt to process the initial greeting sent by the server on connection.
+    $this->processServerGreeting();
+
     try {
-      $greeting = $this->read(TRUE);
+      // Attempt to send an Extended Hello client greeting and process the
+      // server's response which enumerates all supported extensions.
+      $this->sendClientGreeting(ClientGreetingType::Extended);
+      $extensions = $this->processClientGreetingResponse();
     }
-    catch (ReadException $e) {
-      $greeting = '';
-    }
-
-    // Ensure that the server sent a valid greeting before continuing.
-    if (empty($greeting)) {
-      throw new GreetingException('The remote server did not initiate the connection with a greeting');
-    }
-    if (!\preg_match('/^220 (?P<identity>\\S+).*/', $greeting, $matches)) {
-      throw new GreetingException('The remote server initiated the connection with an invalid greeting');
+    catch (ClientGreetingException $e) {
+      // Fall back to the basic Hello client greeting on failure.
+      $this->sendClientGreeting(ClientGreetingType::Basic);
+      $extensions = $this->processClientGreetingResponse();
     }
 
-    // Store the message submission agent's self-reported identity.
-    if (!isset($this->identity)) {
-      $this->identity = $matches['identity'];
+    // Check if the STARTTLS connection type was requested.
+    if ($this->connectionType === ConnectionType::STARTTLS) {
+      // Ensure that the remote server supports the STARTTLS extension.
+      if (!\array_key_exists('STARTTLS', $extensions)) {
+        throw new CryptoException('The remote server does not support the STARTTLS extension');
+      }
+
+      // Inform the remote server that we want to perform crypto negotiation.
+      $this->write('STARTTLS');
+      $this->getResponse();
+
+      // Attempt to enable crypto on the connection.
+      if (!\stream_socket_enable_crypto($this->socket, TRUE, \STREAM_CRYPTO_METHOD_ANY_CLIENT)) {
+        throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket');
+      }
+
+      // Renegotiate extension support after enabling crypto.
+      $this->sendClientGreeting(ClientGreetingType::Extended);
+      $extensions = $this->processClientGreetingResponse();
     }
+
+    // Store the remote server's supported extensions.
+    $this->extensions ??= $extensions ?? [];
   }
 
   /**
-   * Attempt to read a line from the message submission agent.
+   * Attempt to process the remote server's response to the client greeting.
+   *
+   * @return array
+   *   An associative array of extensions supported by the remote server. The
+   *   array keys consist of extension keywords while the array values are
+   *   unprocessed extension parameters.
+   */
+  protected function processClientGreetingResponse(): array {
+    $extensions = [];
+
+    try {
+      $response = $this->getResponse();
+    }
+    catch (ReadException $e) {
+    }
+
+    if (!isset($response)) {
+      throw new ClientGreetingException('The remote server did not send a valid response to the client greeting');
+    }
+    if ($response->code !== 250) {
+      throw new ClientGreetingException('The client greeting resulted in an unsuccessful response from the remote server: ' . implode("\r\n", $response->lines), $response->code);
+    }
+
+    // Discard the first line of the response and reset the extension list.
+    \array_shift($response->lines);
+
+    // Build an associative array of extensions supported by the server.
+    foreach ($response->lines as $line) {
+      if ($extension = \preg_split('/\\s+/', $line)) {
+        $extensions[\strtoupper(\array_shift($extension))] = $extension;
+      }
+    }
+
+    return $extensions;
+  }
+
+  /**
+   * Attempt to process the initial greeting sent by the server on connection.
+   *
+   * The remote server's self-reported identity will be updated upon the first
+   * successful invocation of this method.
+   *
+   * @throws \LibraryMarket\mstt\SMTP\Exception\ServerGreetingException
+   *   If the remote server did not initiate the connection with a greeting, or
+   *   if the remote server initiated the connection with an invalid greeting.
+   */
+  protected function processServerGreeting(): void {
+    try {
+      $greeting = $this->getResponse();
+    }
+    catch (ReadException $e) {
+    }
+
+    // Ensure that the server sent a valid greeting before continuing.
+    if (!isset($greeting)) {
+      throw new ServerGreetingException('The remote server did not initiate the connection with a valid greeting');
+    }
+    if ($greeting->code !== 220) {
+      throw new ServerGreetingException('The remote server initiated the connection with an invalid greeting');
+    }
+
+    // Store the remote server's self-reported identity.
+    $this->identity ??= preg_replace('/\\s.*/', '', array_shift($greeting->lines));
+  }
+
+  /**
+   * Attempt to read a line from the remote server.
    *
    * @throws \LibraryMarket\mstt\SMTP\Exception\ReadException
    *   If unable to read from the underlying stream socket.
@@ -226,7 +319,7 @@ class Connection {
    *   If there is currently no active connection.
    *
    * @return string
-   *   A message from the message submission agent.
+   *   A message from the remote server.
    */
   protected function read(): string {
     if (!\is_resource($this->socket)) {
@@ -237,6 +330,54 @@ class Connection {
     }
 
     return \preg_replace('/\\r?\\n$/', '', $result);
+  }
+
+  /**
+   * Attempt to read a command response from the remote server.
+   *
+   * @return object
+   *   A first class object with the following properties:
+   *   - code: the reply code for the response.
+   *   - lines: an array of strings that represent the lines of the response.
+   */
+  protected function getResponse(): object {
+    $result = (object) [
+      'code' => NULL,
+      'lines' => [],
+    ];
+
+    // Define an anonymous function used to parse reply lines from the server.
+    $parse = function ($response) {
+      $expr = '/^(?P<code>[2-5][0-5][0-9])(?P<type>[- ])(?P<textstring>.*)$/';
+
+      if (\preg_match($expr, $response, $matches)) {
+        return \array_filter($matches, 'is_string', \ARRAY_FILTER_USE_KEY);
+      }
+
+      return [];
+    };
+
+    do {
+      // Attempt to parse a reply line from the underlying stream socket.
+      if ($response = $parse($this->read())) {
+        $result->code ??= intval($response['code']);
+        $result->lines[] = $response['textstring'];
+      }
+
+      // Continue reading while the server indicates there are remaining lines.
+    } while (($response['type'] ?? NULL) === '-');
+
+    return $result;
+  }
+
+  /**
+   * Attempt to send the client greeting to the remote server.
+   *
+   * @param \LibraryMarket\mstt\SMTP\ClientGreetingType $type
+   *   The type of client greeting to send to the remote server.
+   */
+  protected function sendClientGreeting(ClientGreetingType $type): void {
+    $this->write("{$type->value} mstt.librarymarket.com");
   }
 
   /**
@@ -256,6 +397,26 @@ class Connection {
     }
 
     $this->streamContext = $context;
+  }
+
+  /**
+   * Attempt to send a line to the remote server.
+   *
+   * @param string $line
+   *   The line to send (excluding line endings).
+   *
+   * @throws \LibraryMarket\mstt\SMTP\Exception\WriteException
+   *   If unable to write to the underlying stream socket.
+   * @throws \RuntimeException
+   *   If there is currently no active connection.
+   */
+  protected function write(string $line): void {
+    if (!\is_resource($this->socket)) {
+      throw new \RuntimeException('There is currently no active connection');
+    }
+    if (!\fwrite($this->socket, "{$line}\r\n")) {
+      throw new WriteException('Unable to write to the underlying stream socket');
+    }
   }
 
 }
