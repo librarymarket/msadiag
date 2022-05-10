@@ -442,19 +442,24 @@ class Connection {
       throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: ' . \implode("\r\n", $response->lines ?? []), $response->code);
     }
 
-    try {
-      // Set a custom error handler to intercept any errors that occur when
-      // calling \stream_socket_enable_crypto().
-      \set_error_handler(function (int $errno, string $errstr) {
-        throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: ' . $errstr, $errno);
-      });
+    // Ensure that there is an active connection before continuing.
+    if (!\is_resource($this->socket)) {
+      throw new \RuntimeException('There is currently no active connection');
+    }
 
+    // Set a custom error handler to intercept any errors that occur when
+    // calling \stream_socket_enable_crypto().
+    \set_error_handler(function (int $errno, string $errstr) {
+      throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket: ' . $errstr, $errno);
+    });
+
+    try {
       // Attempt to enable crypto on the underlying stream socket.
       //
       // If our custom error handler is not encountered, we should still check
       // for a FALSE return value and throw a generic exception if crypto could
       // not be enabled for the stream socket.
-      if (!\is_resource($this->socket) || !@\stream_socket_enable_crypto($this->socket, TRUE, \STREAM_CRYPTO_METHOD_ANY_CLIENT)) {
+      if (!@\stream_socket_enable_crypto($this->socket, TRUE, \STREAM_CRYPTO_METHOD_ANY_CLIENT)) {
         throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket');
       }
     }
