@@ -35,9 +35,9 @@ class ProbeExtensionsCommand extends Command {
     $this->setHelp('This command connects to the specified SMTP server and probes it for its supported extensions.');
 
     $this->addArgument('server-address', InputArgument::REQUIRED, 'The address of the SMTP server');
-    $this->addArgument('server-port', InputArgument::OPTIONAL, 'The port of the SMTP server', '587');
+    $this->addArgument('server-port', InputArgument::OPTIONAL, 'The port of the SMTP server', '25');
 
-    $this->addOption('encryption-type', NULL, InputOption::VALUE_REQUIRED, 'The type of connection to initiate (none, plain, STARTTLS, or TLS)', 'STARTTLS');
+    $this->addOption('encryption-type', NULL, InputOption::VALUE_REQUIRED, 'The type of connection to initiate (auto, none, plain, STARTTLS, or TLS)', 'auto');
     $this->addOption('format', NULL, InputOption::VALUE_REQUIRED, 'The output format of this command (console, CSV, or JSON)', 'console');
   }
 
@@ -60,6 +60,7 @@ class ProbeExtensionsCommand extends Command {
     try {
       $connection_type = \strtoupper($input->getOption('encryption-type'));
       $connection_type = match ($connection_type) {
+        'AUTO' => ConnectionType::Auto,
         'NONE' => ConnectionType::PlainText,
         'PLAIN' => ConnectionType::PlainText,
         'STARTTLS' => ConnectionType::STARTTLS,
