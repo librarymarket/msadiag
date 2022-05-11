@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace LibraryMarket\mstt\SMTP;
 
+use LibraryMarket\mstt\SMTP\Exception\AuthenticationException;
 use LibraryMarket\mstt\SMTP\Exception\ClientGreetingException;
 use LibraryMarket\mstt\SMTP\Exception\ConnectException;
 use LibraryMarket\mstt\SMTP\Exception\CryptoException;
@@ -151,6 +152,58 @@ class Connection {
    */
   public function __destruct() {
     $this->disconnect();
+  }
+
+  /**
+   * Attempt to authenticate to the remote server using the supplied mechanism.
+   *
+   * The supplied authentication mechanism may produce exceptions not documented
+   * by this method. Consult the documentation of the supplied SASL mechanism
+   * for more information.
+   *
+   * @param \LibraryMarket\mstt\SMTP\AuthenticationInterface $mechanism
+   *   The SASL mechanism to use for authentication.
+   *
+   * @throws \LibraryMarket\mstt\SMTP\Exception\AuthenticationException
+   *   If authentication fails.
+   * @throws \LibraryMarket\mstt\SMTP\Exception\WriteException
+   *   If unable to write to the underlying stream socket.
+   * @throws \RuntimeException
+   *   If there is currently no active connection.
+   */
+  public function authenticate(AuthenticationInterface $mechanism): void {
+    // Ensure that authentication is supported by the remote server.
+    if (!\array_key_exists('AUTH', $this->extensions) || !\is_array($this->extensions['AUTH'])) {
+      throw new AuthenticationException('The remote server does not support the AUTH extension to SMTP');
+    }
+
+    // Fetch a list of SASL mechanisms supported by the remote server.
+    $supported_mechanisms = \array_map(\strtotupper(...), $this->extensions['AUTH']);
+    // Ensure that the supplied authentication mechanism is supported.
+    if (!\in_array($mechanism->name(), $supported_mechanisms, TRUE)) {
+      throw new AuthenticationException("The remote server does not support the '{$mechanism->name()}' SASL mechanism for authentication");
+    }
+
+    // Begin authentication using the supplied mechanism.
+    $this->write("AUTH {$mechanism->name()}");
+
+    try {
+      // Continue to delegate the authentication flow to the supplied mechanism
+      // while the server returns an intermediate (i.e., 334) reply code.
+      while (($response = $this->getResponse()) && isset($response->code, $response->lines) && $response->code === 334 && \is_array($response->lines)) {
+        // Process the response from the remote server and reply accordingly.
+        $this->write($mechanism->process(\array_filter($response->lines, \is_string(...))));
+      }
+
+      // Ensure that authentication was successful.
+      if ($response->code !== 235) {
+        throw new AuthenticationException('Authentication failed: ' . \implode("\r\n", $response->lines ?? []), $response->code);
+      }
+    }
+    finally {
+      // Reset the authentication mechanism so that it may be used again.
+      $mechanism->reset();
+    }
   }
 
   /**
