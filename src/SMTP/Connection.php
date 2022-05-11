@@ -282,7 +282,9 @@ class Connection {
       }
       catch (\Throwable $e) {
       }
+    }
 
+    if (\is_resource($this->socket)) {
       @\fclose($this->socket);
     }
 
