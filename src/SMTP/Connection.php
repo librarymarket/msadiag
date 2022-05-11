@@ -397,7 +397,7 @@ class Connection {
   }
 
   /**
-   * Check if authentication is required to send mail.
+   * Check if authentication is required to submit messages.
    *
    * This method should only be called after the remote server has been probed,
    * but prior to authentication.
@@ -411,7 +411,7 @@ class Connection {
    *   authentication is required to submit messages.
    *
    * @return bool
-   *   TRUE if authentication is required to send mail, FALSE otherwise.
+   *   TRUE if authentication is required to submit messages, FALSE otherwise.
    */
   public function isAuthenticationRequired(): bool {
     $this->write('MAIL FROM:<>');
