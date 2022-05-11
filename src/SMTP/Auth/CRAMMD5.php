@@ -48,9 +48,14 @@ class CRAMMD5 extends AuthenticationBase {
       throw new \LogicException('Multiple responses are not supported by this authentication mechanism');
     }
 
+    // Ensure that a challenge was supplied by the remote server.
+    if (!\is_string($challenge = \reset($response)) || \strlen($challenge) === 0) {
+      throw new \LogicException('No challenge was supplied by the remote server');
+    }
+
     try {
       // Compute the challenge response reply to send to the remote server.
-      return \base64_encode($this->username . ' ' . \hash_hmac('md5', \base64_decode(\reset($response)), $this->password));
+      return \base64_encode($this->username . ' ' . \hash_hmac('md5', \base64_decode($challenge), $this->password));
     }
     finally {
       // Mark the challenge as having been processed.
