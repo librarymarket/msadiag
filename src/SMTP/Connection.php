@@ -299,7 +299,11 @@ class Connection {
    */
   public function getStreamContext() {
     if (!isset($this->streamContext)) {
-      $this->streamContext = \stream_context_get_default();
+      $this->streamContext = \stream_context_get_default([
+        'ssl' => [
+          'crypto_method' => \STREAM_CRYPTO_METHOD_ANY_CLIENT,
+        ],
+      ]);
     }
 
     return $this->streamContext;
@@ -552,7 +556,7 @@ class Connection {
       // If our custom error handler is not encountered, we should still check
       // for a FALSE return value and throw a generic exception if crypto could
       // not be enabled for the stream socket.
-      if (!@\stream_socket_enable_crypto($this->socket, TRUE, \STREAM_CRYPTO_METHOD_ANY_CLIENT)) {
+      if (!@\stream_socket_enable_crypto($this->socket, TRUE)) {
         throw new CryptoException('Unable to enable STARTTLS on the underlying stream socket');
       }
     }
