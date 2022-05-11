@@ -76,7 +76,13 @@ class ProbeExtensionsCommand extends Command {
     $connection->probe();
     $connection->disconnect();
 
-    $format($output, $connection->extensions);
+    $extensions = $connection->extensions;
+
+    \ksort($extensions);
+    \uasort($extensions, fn ($a, $b) => \count($b) <=> \count($a));
+
+    $format($output, $extensions);
+
     return Command::SUCCESS;
   }
 
@@ -100,9 +106,6 @@ class ProbeExtensionsCommand extends Command {
 
     $table->setHeaderTitle('Extensions');
     $table->setHeaders(['Name', 'Parameter List']);
-
-    \ksort($extensions);
-    \uasort($extensions, fn ($a, $b) => \count($b) <=> \count($a));
 
     $rows = [];
     foreach ($extensions as $extension => $parameters) {
