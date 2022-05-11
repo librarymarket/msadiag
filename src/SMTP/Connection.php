@@ -492,13 +492,19 @@ class Connection {
       $extensions = $this->processClientGreetingResponse();
     }
 
-    // Check if the STARTTLS connection type was requested.
-    if ($this->connectionType === ConnectionType::STARTTLS) {
-      // Ensure that the remote server supports the STARTTLS extension.
-      if (!\array_key_exists('STARTTLS', $extensions)) {
-        throw new CryptoException('The remote server does not support the STARTTLS extension to SMTP');
-      }
+    $crypto_required = $this->connectionType === ConnectionType::STARTTLS;
+    $crypto_desired = \in_array($this->connectionType, [
+      ConnectionType::Auto,
+      ConnectionType::STARTTLS,
+    ], TRUE);
 
+    // Check if the STARTTLS connection type requirement cannot be satisfied.
+    if ($crypto_required && !\array_key_exists('STARTTLS', $extensions)) {
+      throw new CryptoException('The remote server does not support the STARTTLS extension to SMTP');
+    }
+
+    // Use STARTTLS if the connection type wants it.
+    if ($crypto_desired && \array_key_exists('STARTTLS', $extensions)) {
       // Attempt to enable crypto on the underlying stream socket.
       $this->streamEnableCrypto();
 

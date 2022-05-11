@@ -9,6 +9,7 @@ namespace LibraryMarket\mstt\SMTP;
  */
 enum ConnectionType {
 
+  case Auto;
   case PlainText;
   case STARTTLS;
   case TLS;
