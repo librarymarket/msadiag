@@ -426,6 +426,7 @@ class Connection {
       $result = match ($response->code) {
         250 => FALSE,
         530 => TRUE,
+        550 => TRUE,
       };
 
       return $result;
