@@ -137,7 +137,9 @@ class ProbeExtensionsCommand extends Command {
       return;
     }
 
-    $fh = \fopen('php://memory', 'r+');
+    if (!$fh = \fopen('php://memory', 'r+')) {
+      throw new \RuntimeException('Unable to create temporary buffer to generate CSV output');
+    }
 
     \fputcsv($fh, ['Name', 'Parameter List']);
     foreach ($extensions as $extension => $parameters) {
@@ -146,7 +148,9 @@ class ProbeExtensionsCommand extends Command {
 
     \rewind($fh);
     while ($line = \fgets($fh)) {
-      $output->writeln(\preg_replace('/\\r?\\n$/', '', $line));
+      if ($result = \preg_replace('/\\r?\\n$/', '', $line)) {
+        $output->writeln($line);
+      }
     }
 
     \fclose($fh);
