@@ -425,7 +425,7 @@ class Connection {
       return $result;
     }
     catch (\UnhandledMatchError $e) {
-      throw new \UnexpectedValueException('An unexpected error occurred while attempting to determine if authentication is required to submit messages');
+      throw new \UnexpectedValueException('An unexpected error occurred while attempting to determine if authentication is required to submit messages: ' . \implode("\r\n", $response->lines ?? []), $response->code);
     }
   }
 
