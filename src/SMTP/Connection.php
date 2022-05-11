@@ -25,6 +25,9 @@ use LibraryMarket\mstt\SMTP\Exception\WriteException;
  *    - Its supported ESMTP extensions (if any)
  *    If STARTTLS was specified as the connection type, crypto will be enabled
  *    and extension support will be probed again once crypto is negotiated.
+ * 4. (Optional) Determine if authentication is required to submit messages by
+ *    invoking ::isAuthenticationRequired().
+ * 5. (Optional) Test credentials by invoking ::authenticate().
  *
  * After the message submission agent has been probed, details about it will be
  * available in the public properties of this class.
@@ -363,6 +366,47 @@ class Connection {
     }
 
     return $this->streamContext;
+  }
+
+  /**
+   * Check if authentication is required to send mail.
+   *
+   * This method should only be called after the remote server has been probed,
+   * but prior to authentication.
+   *
+   * @throws \LibraryMarket\mstt\SMTP\Exception\ReadException
+   *   If unable to read from the underlying stream socket.
+   * @throws \RuntimeException
+   *   If there is currently no active connection.
+   * @throws \UnexpectedValueException
+   *   If an unexpected error occurred while attempting to determine if
+   *   authentication is required to submit messages.
+   *
+   * @return bool
+   *   TRUE if authentication is required to send mail, FALSE otherwise.
+   */
+  public function isAuthenticationRequired(): bool {
+    $this->write('MAIL FROM:<>');
+
+    $response = $this->getResponse();
+    if (!isset($response->code)) {
+      throw new \UnexpectedValueException('The remote server did not send a valid response');
+    }
+
+    $this->write('RSET');
+    $this->getResponse();
+
+    try {
+      $result = match ($response->code) {
+        250 => FALSE,
+        530 => TRUE,
+      };
+
+      return $result;
+    }
+    catch (\UnhandledMatchError $e) {
+      throw new \UnexpectedValueException('An unexpected error occurred while attempting to determine if authentication is required to submit messages');
+    }
   }
 
   /**
