@@ -1,0 +1,22 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * @file
+ * This file serves as the application entrypoint.
+ */
+
+declare(strict_types = 1);
+
+require __DIR__ . '/vendor/autoload.php';
+
+$commands = [
+];
+
+$application = new \Symfony\Component\Console\Application('mstt');
+
+foreach ($commands as $command) {
+  $application->add($command);
+}
+
+$application->run();
