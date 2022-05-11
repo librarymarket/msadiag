@@ -304,6 +304,26 @@ class Connection {
   }
 
   /**
+   * Get the metadata of the underlying stream socket.
+   *
+   * @throws \RuntimeException
+   *   If there is currently no active connection.
+   *
+   * @see \stream_get_meta_data()
+   *   For a description of the return value.
+   *
+   * @return mixed[]
+   *   The metadata of the underlying stream socket.
+   */
+  public function getMetadata(): array {
+    if (!\is_resource($this->socket)) {
+      throw new \RuntimeException('There is currently no active connection');
+    }
+
+    return \stream_get_meta_data($this->socket);
+  }
+
+  /**
    * Attempt to read a command response from the remote server.
    *
    * @throws \LibraryMarket\mstt\SMTP\Exception\ReadException
