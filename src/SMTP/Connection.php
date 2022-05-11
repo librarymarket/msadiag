@@ -421,20 +421,35 @@ class Connection {
       throw new \UnexpectedValueException('The remote server did not send a valid response');
     }
 
-    $this->write('RSET');
-    $this->getResponse();
+    // If the MAIL command is successful, we should also attempt to send RCPT TO
+    // in order to accommodate servers with multiple roles (e.g., MSA and MTA).
+    if ($response->code === 250) {
+      $this->write('RCPT TO:<' . \bin2hex(\random_bytes(8)) . '@' . \bin2hex(\random_bytes(8)) . '>');
+
+      $response = $this->getResponse();
+      if (!isset($response->code)) {
+        throw new \UnexpectedValueException('The remote server did not send a valid response');
+      }
+    }
 
     try {
       $result = match ($response->code) {
         250 => FALSE,
+        251 => FALSE,
         530 => TRUE,
         550 => TRUE,
+        551 => TRUE,
+        554 => TRUE,
       };
 
       return $result;
     }
     catch (\UnhandledMatchError $e) {
       throw new \UnexpectedValueException('An unexpected error occurred while attempting to determine if authentication is required to submit messages: ' . \implode("\r\n", $response->lines ?? []), $response->code);
+    }
+    finally {
+      $this->write('RSET');
+      $this->getResponse();
     }
   }
 
