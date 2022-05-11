@@ -203,7 +203,7 @@ class Connection {
         throw new AuthenticationException('The remote server failed to send a valid response during authentication');
       }
       if ($response->code !== 235) {
-        throw new AuthenticationException('Authentication failed: ' . \implode("\r\n", $response->lines ?? []), $response->code);
+        throw new AuthenticationException('The authentication attempt to the remote server did not succeed: ' . \implode("\r\n", $response->lines ?? []), $response->code);
       }
     }
     finally {
