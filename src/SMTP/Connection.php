@@ -277,6 +277,7 @@ class Connection {
    */
   public function disconnect(): void {
     if (\is_resource($this->socket)) {
+      $this->write('QUIT');
       @\fclose($this->socket);
     }
 
