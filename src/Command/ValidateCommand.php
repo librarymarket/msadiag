@@ -397,7 +397,6 @@ class ValidateCommand extends Command {
 
       $this->output->writeln('<info>PASS</info>');
     }
-
   }
 
 }
