@@ -88,7 +88,6 @@ class ValidateCommand extends Command {
     $this->addArgument('password', InputArgument::REQUIRED, 'The password to use for authentication');
 
     $this->addOption('continue-after-failure', NULL, InputOption::VALUE_NONE, 'Run all tests instead of stopping after the first failure');
-    $this->addOption('debug', NULL, InputOption::VALUE_NONE, 'Enable debug messages for test failures');
     $this->addOption('strict', NULL, InputOption::VALUE_NONE, 'Run strict tests in addition to all other tests');
     $this->addOption('tls', NULL, InputOption::VALUE_NONE, 'Use TLS for encryption instead of STARTTLS');
   }
@@ -223,8 +222,11 @@ class ValidateCommand extends Command {
       catch (TestFailureException $e) {
         $result = FALSE;
 
-        if ($this->input->getOption('debug') && $message = \preg_split('/\\r?\\n/', $e->getMessage())) {
-          $this->io->text($message);
+        if ($message = \preg_split('/\\r?\\n/', $e->getMessage())) {
+          $this->io->getErrorStyle()->section('Debug Log');
+          foreach ($message as $line) {
+            $this->io->getErrorStyle()->writeln("  {$line}");
+          }
         }
 
         if (!$this->input->getOption('continue-after-failure')) {
