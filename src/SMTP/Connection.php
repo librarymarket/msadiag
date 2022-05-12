@@ -741,6 +741,10 @@ class Connection {
     });
 
     try {
+      $this->debug .= "//\r\n";
+      $this->debug .= "// TLS negotiation in progress\r\n";
+      $this->debug .= "//\r\n";
+
       // Attempt to enable crypto on the underlying stream socket.
       //
       // If our custom error handler is not encountered, we should still check
