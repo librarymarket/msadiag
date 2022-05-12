@@ -82,7 +82,6 @@ class ProbeExtensionsCommand extends Command {
 
     $connection->connect();
     $connection->probe();
-    $connection->disconnect();
 
     $extensions = $connection->extensions;
 
