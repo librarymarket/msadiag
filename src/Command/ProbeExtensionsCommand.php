@@ -21,17 +21,10 @@ class ProbeExtensionsCommand extends Command {
   /**
    * {@inheritdoc}
    */
-  protected static $defaultDescription = 'Probe the specified SMTP server for its supported extensions';
-
-  /**
-   * {@inheritdoc}
-   */
-  protected static $defaultName = 'probe:extensions';
-
-  /**
-   * {@inheritdoc}
-   */
   protected function configure(): void {
+    $this->setName('probe:extensions');
+    $this->setAliases(['ext', 'extensions']);
+    $this->setDescription('Probe the specified SMTP server for its supported extensions');
     $this->setHelp('This command connects to the specified SMTP server and probes it for its supported extensions.');
 
     $this->addArgument('server-address', InputArgument::REQUIRED, 'The address of the SMTP server');
@@ -148,11 +141,9 @@ class ProbeExtensionsCommand extends Command {
     }
 
     \rewind($fh);
-    while ($line = \fgets($fh)) {
-      if ($result = \preg_replace('/\\r?\\n$/', '', $line)) {
-        $output->writeln($line);
-      }
-    }
+
+    // Write the contents of the buffer to the supplied output.
+    $output->write(\stream_get_contents($fh));
 
     \fclose($fh);
   }
