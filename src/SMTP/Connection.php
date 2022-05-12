@@ -34,7 +34,8 @@ use LibraryMarket\mstt\SMTP\Exception\WriteException;
  */
 class Connection {
 
-  const DEFAULT_TIMEOUT = 3.0;
+  const DEFAULT_CONNECT_TIMEOUT = 3.0;
+  const DEFAULT_READ_WRITE_TIMEOUT = 15.0;
 
   /**
    * The IP address or hostname of the message submission agent.
@@ -237,7 +238,7 @@ class Connection {
    * @throws \RuntimeException
    *   If the socket could not be configured.
    */
-  public function connect(float $connect_timeout = self::DEFAULT_TIMEOUT, float $read_write_timeout = self::DEFAULT_TIMEOUT): void {
+  public function connect(float $connect_timeout = self::DEFAULT_CONNECT_TIMEOUT, float $read_write_timeout = self::DEFAULT_READ_WRITE_TIMEOUT): void {
     // Ensure that there isn't already an active connection.
     if (\is_resource($this->socket)) {
       throw new \LogicException('There is already an active connection');
