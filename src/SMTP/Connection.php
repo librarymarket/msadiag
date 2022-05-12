@@ -424,7 +424,7 @@ class Connection {
     // If the MAIL command is successful, we should also attempt to send RCPT TO
     // in order to accommodate servers with multiple roles (e.g., MSA and MTA).
     if ($response->code === 250) {
-      $this->write('RCPT TO:<' . \bin2hex(\random_bytes(8)) . '@' . \bin2hex(\random_bytes(8)) . '>');
+      $this->write('RCPT TO:<' . \bin2hex(\random_bytes(8)) . '@librarymarket.com>');
 
       $response = $this->getResponse();
       if (!isset($response->code)) {

@@ -61,8 +61,8 @@ class ValidateCommand extends Command {
       ' * The server must use a valid certificate, verifiable using the Mozilla CA bundle.',
       ' * The server must support the SMTP AUTH extension.',
       ' * The server must support SASL authentication via CRAM-MD5, LOGIN, or PLAIN.',
-      ' * The server must reject invalid credentials.',
       ' * The server must require authentication to submit messages.',
+      ' * The server must reject invalid credentials.',
       ' * The server must accept valid credentials.',
       ' * The server must not require authentication to submit messages after successful authentication.',
     ]));
