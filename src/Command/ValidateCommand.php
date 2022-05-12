@@ -57,7 +57,7 @@ class ValidateCommand extends Command {
       '',
       'A suitable message submission agent must satisfy the following criteria:',
       '',
-      ' * The server must not allow authentication via plain-text connection.',
+      ' * [Strict] The server must not allow authentication via plain-text connection.',
       ' * The server must support a modern TLS encryption protocol (TLSv1.2 or TLSv1.3).',
       ' * The server must use a valid certificate, verifiable using the Mozilla CA bundle.',
       ' * The server must support the SMTP AUTH extension.',
@@ -73,6 +73,7 @@ class ValidateCommand extends Command {
     $this->addArgument('username', InputArgument::REQUIRED, 'The username to use for authentication');
     $this->addArgument('password', InputArgument::REQUIRED, 'The password to use for authentication');
 
+    $this->addOption('strict', NULL, InputOption::VALUE_NONE, 'Run strict tests in addition to all other tests');
     $this->addOption('tls', NULL, InputOption::VALUE_NONE, 'Use TLS for encryption instead of STARTTLS');
   }
 
@@ -85,7 +86,6 @@ class ValidateCommand extends Command {
     }
 
     $tests = [
-      $this->testPlainTextAuthenticationIsNotAllowed(...),
       $this->testEncryptionProtocolVersion(...),
       $this->testAuthenticationSupport(...),
       $this->testAuthenticationMechanismSupport(...),
@@ -93,6 +93,10 @@ class ValidateCommand extends Command {
       $this->testAuthenticationWithInvalidCredentials(...),
       $this->testAuthenticationWithValidCredentials(...),
     ];
+
+    if ($input->getOption('strict')) {
+      \array_unshift($tests, $this->testPlainTextAuthenticationIsNotAllowed(...));
+    }
 
     // Run all remaining test cases.
     if (!$this->runTests($input, $output, ...$tests)) {
