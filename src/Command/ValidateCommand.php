@@ -73,6 +73,7 @@ class ValidateCommand extends Command {
     $this->addArgument('username', InputArgument::REQUIRED, 'The username to use for authentication');
     $this->addArgument('password', InputArgument::REQUIRED, 'The password to use for authentication');
 
+    $this->addOption('continue-after-failure', NULL, InputOption::VALUE_NONE, 'Run all tests instead of stopping after the first failure');
     $this->addOption('strict', NULL, InputOption::VALUE_NONE, 'Run strict tests in addition to all other tests');
     $this->addOption('tls', NULL, InputOption::VALUE_NONE, 'Use TLS for encryption instead of STARTTLS');
   }
@@ -203,6 +204,10 @@ class ValidateCommand extends Command {
     foreach ($tests as $test) {
       if (!$test($input, $output)) {
         $result = FALSE;
+
+        if (!$input->getOption('continue-after-failure')) {
+          break;
+        }
       }
     }
 
