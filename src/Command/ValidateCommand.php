@@ -39,6 +39,13 @@ class ValidateCommand extends Command {
   protected Connection $connection;
 
   /**
+   * The type of connection to initiate.
+   *
+   * @var \LibraryMarket\mstt\SMTP\ConnectionType
+   */
+  protected ConnectionType $connectionType = ConnectionType::STARTTLS;
+
+  /**
    * {@inheritdoc}
    */
   protected function configure(): void {
@@ -73,24 +80,15 @@ class ValidateCommand extends Command {
    * {@inheritdoc}
    */
   protected function execute(InputInterface $input, OutputInterface $output): int {
-    $connection_type = ConnectionType::STARTTLS;
     if ($input->getOption('tls')) {
-      $connection_type = ConnectionType::TLS;
-    }
-
-    try {
-      // Create an encrypted connection for all remaining tests.
-      $this->connection = new Connection($input->getArgument('server-address'), $input->getArgument('server-port'), $connection_type, $this->getStreamContext());
-      $this->connection->connect();
-      $this->connection->probe();
-    }
-    catch (ConnectException | CryptoException) {
+      $this->connectionType = ConnectionType::TLS;
     }
 
     $tests = [
       $this->testEncryptionProtocolVersion(...),
       $this->testAuthenticationSupport(...),
       $this->testAuthenticationMechanismSupport(...),
+      $this->testAuthenticationIsRequiredForSubmission(...),
       $this->testAuthenticationWithInvalidCredentials(...),
       $this->testAuthenticationWithValidCredentials(...),
     ];
@@ -109,6 +107,8 @@ class ValidateCommand extends Command {
   /**
    * Get a compatible authentication mechanism using the supplied credentials.
    *
+   * @param string[] $mechanisms
+   *   A list of SASL mechanisms supported by the remote server.
    * @param string $username
    *   The username to use for authentication.
    * @param string $password
@@ -120,9 +120,9 @@ class ValidateCommand extends Command {
    * @return \LibraryMarket\mstt\SMTP\AuthenticationInterface|null
    *   An authentication mechanism, or NULL if there is no compatible mechanism.
    */
-  protected function getAuthenticationMechanism(string $username, string $password): ?AuthenticationInterface {
+  protected function getAuthenticationMechanism(array $mechanisms, string $username, string $password): ?AuthenticationInterface {
     try {
-      return match (\current(\array_intersect($this->connection->extensions['AUTH'], self::SUPPORTED_SASL_MECHANISMS))) {
+      return match (\current(\array_intersect(self::SUPPORTED_SASL_MECHANISMS, $mechanisms))) {
         'CRAM-MD5' => new CRAMMD5($username, $password),
         'LOGIN' => new LOGIN($username, $password),
         'PLAIN' => new PLAIN($username, $password),
@@ -131,6 +131,25 @@ class ValidateCommand extends Command {
     catch (\UnhandledMatchError) {
       throw new \RuntimeException('Unable to find a matching SASL mechanism for authentication');
     }
+  }
+
+  /**
+   * Get a new connection to the remote server.
+   *
+   * @return \LibraryMarket\mstt\SMTP\Connection
+   *   A connection to the remote server.
+   */
+  protected function getConnection(InputInterface $input) {
+    $connection = new Connection($input->getArgument('server-address'), $input->getArgument('server-port'), $this->connectionType, $this->getStreamContext());
+
+    try {
+      $connection->connect();
+      $connection->probe();
+    }
+    catch (ConnectException | CryptoException) {
+    }
+
+    return $connection;
   }
 
   /**
@@ -178,6 +197,32 @@ class ValidateCommand extends Command {
   }
 
   /**
+   * Tests if authentication is required to submit messages.
+   *
+   * @param \Symfony\Component\Console\Input\InputInterface $input
+   *   The console input.
+   * @param \Symfony\Component\Console\Output\OutputInterface $output
+   *   The console output.
+   *
+   * @return bool
+   *   TRUE if the test passed, FALSE otherwise.
+   */
+  protected function testAuthenticationIsRequiredForSubmission(InputInterface $input, OutputInterface $output) {
+    $connection = $this->getConnection($input);
+
+    $output->write('Testing if authentication is required to submit messages ... ');
+
+    // Ensure that the server requires authentication to submit messages.
+    if (!$connection->isAuthenticationRequired()) {
+      $output->writeln('<error>FAIL</error>');
+      return FALSE;
+    }
+
+    $output->writeln('<info>PASS</info>');
+    return TRUE;
+  }
+
+  /**
    * Tests if one of CRAM-MD5, LOGIN, or PLAIN are supported.
    *
    * @param \Symfony\Component\Console\Input\InputInterface $input
@@ -189,10 +234,12 @@ class ValidateCommand extends Command {
    *   TRUE if the test passed, FALSE otherwise.
    */
   protected function testAuthenticationMechanismSupport(InputInterface $input, OutputInterface $output): bool {
+    $connection = $this->getConnection($input);
+
     $output->write('Testing if one of CRAM-MD5, LOGIN, or PLAIN are supported ... ');
 
     // Ensure that the server has at least one of the supported SASL mechanisms.
-    if (!\is_string($mechanism = \current(\array_intersect($this->connection->extensions['AUTH'], self::SUPPORTED_SASL_MECHANISMS)))) {
+    if (!\is_string($mechanism = \current(\array_intersect($connection->extensions['AUTH'], self::SUPPORTED_SASL_MECHANISMS)))) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
     }
@@ -213,10 +260,12 @@ class ValidateCommand extends Command {
    *   TRUE if the test passed, FALSE otherwise.
    */
   protected function testAuthenticationSupport(InputInterface $input, OutputInterface $output): bool {
+    $connection = $this->getConnection($input);
+
     $output->write('Testing if the SMTP AUTH extension is supported ... ');
 
     // Ensure that the server supports the SMTP AUTH extension.
-    if (!\array_key_exists('AUTH', $this->connection->extensions)) {
+    if (!\array_key_exists('AUTH', $connection->extensions)) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
     }
@@ -237,12 +286,14 @@ class ValidateCommand extends Command {
    *   TRUE if the test passed, FALSE otherwise.
    */
   protected function testAuthenticationWithInvalidCredentials(InputInterface $input, OutputInterface $output): bool {
+    $connection = $this->getConnection($input);
+
     $output->write('Testing if authentication fails with invalid credentials ... ');
 
     try {
       // Attempt to authenticate using invalid credentials.
-      if ($mechanism = $this->getAuthenticationMechanism(\bin2hex(\random_bytes(8)), \bin2hex(\random_bytes(8)))) {
-        $this->connection->authenticate($mechanism);
+      if ($mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'], \bin2hex(\random_bytes(8)), \bin2hex(\random_bytes(8)))) {
+        $connection->authenticate($mechanism);
       }
 
       // If we reach this point, the server accepted random credentials.
@@ -251,18 +302,8 @@ class ValidateCommand extends Command {
     }
     catch (AuthenticationException) {
       $output->writeln('<info>PASS</info>');
+      return TRUE;
     }
-
-    $output->write('Testing if authentication is required to submit messages ... ');
-
-    // Ensure that the server requires authentication to submit messages.
-    if (!$this->connection->isAuthenticationRequired()) {
-      $output->writeln('<error>FAIL</error>');
-      return FALSE;
-    }
-
-    $output->writeln('<info>PASS</info>');
-    return TRUE;
   }
 
   /**
@@ -277,12 +318,14 @@ class ValidateCommand extends Command {
    *   TRUE if the test passed, FALSE otherwise.
    */
   protected function testAuthenticationWithValidCredentials(InputInterface $input, OutputInterface $output): bool {
+    $connection = $this->getConnection($input);
+
     $output->write('Testing if authentication succeeds with valid credentials ... ');
 
     try {
       // Attempt to authenticate using the supplied credentials.
-      if ($mechanism = $this->getAuthenticationMechanism($input->getArgument('username'), $input->getArgument('password'))) {
-        $this->connection->authenticate($mechanism);
+      if ($mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'], $input->getArgument('username'), $input->getArgument('password'))) {
+        $connection->authenticate($mechanism);
         $output->writeln('<info>PASS</info>');
       }
     }
@@ -295,7 +338,7 @@ class ValidateCommand extends Command {
     $output->write('Testing if authentication is no longer required to submit messages ... ');
 
     // Ensure that the server no longer requires authentication.
-    if ($this->connection->isAuthenticationRequired()) {
+    if ($connection->isAuthenticationRequired()) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
     }
@@ -316,10 +359,12 @@ class ValidateCommand extends Command {
    *   TRUE if the test passed, FALSE otherwise.
    */
   protected function testEncryptionProtocolVersion(InputInterface $input, OutputInterface $output): bool {
+    $connection = $this->getConnection($input);
+
     $output->write('Testing if TLSv1.2 or greater is being used ... ');
-    $protocol = $this->connection->getMetadata()['crypto']['protocol'] ?? NULL;
 
     // Ensure that the server supports a modern encryption protocol.
+    $protocol = $connection->getMetadata()['crypto']['protocol'] ?? NULL;
     if (!isset($protocol) || \in_array($protocol, ['TLSv1', 'TLSv1.1'])) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
