@@ -23,7 +23,7 @@ class ProbeExtensionsCommand extends Command {
    */
   protected function configure(): void {
     $this->setName('probe:extensions');
-    $this->setAliases(['ext', 'extensions']);
+    $this->setAliases(['ext', 'extensions', 'pr-ext', 'pr:ext']);
     $this->setDescription('Probe the specified SMTP server for its supported extensions');
     $this->setHelp('This command connects to the specified SMTP server and probes it for its supported extensions.');
 
