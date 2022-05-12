@@ -13,6 +13,7 @@ require __DIR__ . '/vendor/autoload.php';
 $commands = [
   new \LibraryMarket\mstt\Command\ProbeEncryptionCommand(),
   new \LibraryMarket\mstt\Command\ProbeExtensionsCommand(),
+  new \LibraryMarket\mstt\Command\ValidateCommand(),
 ];
 
 $application = new \Symfony\Component\Console\Application('mstt');
