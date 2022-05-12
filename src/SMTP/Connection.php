@@ -734,7 +734,7 @@ class Connection {
     if (!\is_resource($this->socket)) {
       throw new \RuntimeException('There is currently no active connection');
     }
-    if (!\fwrite($this->socket, "{$line}\r\n")) {
+    if (!@\fwrite($this->socket, "{$line}\r\n")) {
       throw new WriteException('Unable to write to the underlying stream socket');
     }
   }
