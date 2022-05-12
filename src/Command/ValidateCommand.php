@@ -9,6 +9,8 @@ use LibraryMarket\mstt\SMTP\Auth\LOGIN;
 use LibraryMarket\mstt\SMTP\Auth\PLAIN;
 use LibraryMarket\mstt\SMTP\AuthenticationInterface;
 use LibraryMarket\mstt\SMTP\Exception\AuthenticationException;
+use LibraryMarket\mstt\SMTP\Exception\ConnectException;
+use LibraryMarket\mstt\SMTP\Exception\CryptoException;
 use LibraryMarket\mstt\SMTP\Connection;
 use LibraryMarket\mstt\SMTP\ConnectionType;
 
@@ -76,26 +78,14 @@ class ValidateCommand extends Command {
       $connection_type = ConnectionType::TLS;
     }
 
-    if ($connection_type !== ConnectionType::TLS) {
-      // Create a plain-text connection for tests specific to plain-text.
-      $this->connection = new Connection($input->getArgument('server-address'), $input->getArgument('server-port'), ConnectionType::PlainText, $this->getStreamContext());
+    try {
+      // Create an encrypted connection for all remaining tests.
+      $this->connection = new Connection($input->getArgument('server-address'), $input->getArgument('server-port'), $connection_type, $this->getStreamContext());
       $this->connection->connect();
       $this->connection->probe();
-
-      $tests = [
-        $this->testPlainTextAuthenticationIsNotAllowed(...),
-      ];
-
-      // Run plain-text specific test cases.
-      if (!$this->runTests($input, $output, ...$tests)) {
-        return Command::FAILURE;
-      }
     }
-
-    // Create an encrypted connection for all remaining tests.
-    $this->connection = new Connection($input->getArgument('server-address'), $input->getArgument('server-port'), $connection_type, $this->getStreamContext());
-    $this->connection->connect();
-    $this->connection->probe();
+    catch (ConnectException | CryptoException) {
+    }
 
     $tests = [
       $this->testEncryptionProtocolVersion(...),
@@ -331,29 +321,6 @@ class ValidateCommand extends Command {
 
     // Ensure that the server supports a modern encryption protocol.
     if (!isset($protocol) || \in_array($protocol, ['TLSv1', 'TLSv1.1'])) {
-      $output->writeln('<error>FAIL</error>');
-      return FALSE;
-    }
-
-    $output->writeln('<info>PASS</info>');
-    return TRUE;
-  }
-
-  /**
-   * Tests if authentication is not allowed via plain-text.
-   *
-   * @param \Symfony\Component\Console\Input\InputInterface $input
-   *   The console input.
-   * @param \Symfony\Component\Console\Output\OutputInterface $output
-   *   The console output.
-   *
-   * @return bool
-   *   TRUE if the test passed, FALSE otherwise.
-   */
-  protected function testPlainTextAuthenticationIsNotAllowed(InputInterface $input, OutputInterface $output): bool {
-    $output->write('Testing if authentication is not allowed via plain-text ... ');
-
-    if (\array_key_exists('AUTH', $this->connection->extensions)) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
     }
