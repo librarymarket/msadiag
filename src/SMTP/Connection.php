@@ -52,6 +52,15 @@ class Connection {
   public readonly ConnectionType $connectionType;
 
   /**
+   * The raw client-server communication history (for debugging purposes).
+   *
+   * Client messages are prefixed with the constant string '~> '.
+   *
+   * @var string
+   */
+  protected string $debug = '';
+
+  /**
    * An associative array representing the extensions supported by the server.
    *
    * The array keys consist of extension keywords (normalized), while the array
@@ -269,6 +278,18 @@ class Connection {
     }
 
     $this->socket = $socket;
+  }
+
+  /**
+   * Get the raw client-server communication history (for debugging purposes).
+   *
+   * Client messages are prefixed with the constant string '~> '.
+   *
+   * @return string
+   *   The raw client-server communication history (for debugging purposes).
+   */
+  public function debug(): string {
+    return $this->debug;
   }
 
   /**
@@ -621,6 +642,9 @@ class Connection {
       throw new ReadException('Unable to read from the underlying stream socket');
     }
 
+    // Update the internal communication history.
+    $this->debug .= $result;
+
     return \preg_replace('/\\r?\\n$/', '', $result) ?? '';
   }
 
@@ -735,9 +759,12 @@ class Connection {
     if (!\is_resource($this->socket)) {
       throw new \RuntimeException('There is currently no active connection');
     }
-    if (!@\fwrite($this->socket, "{$line}\r\n")) {
+    if (!@\fwrite($this->socket, $output = "{$line}\r\n")) {
       throw new WriteException('Unable to write to the underlying stream socket');
     }
+
+    // Update the internal communication history.
+    $this->debug .= "~> {$output}";
   }
 
 }
