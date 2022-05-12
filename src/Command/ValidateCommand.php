@@ -186,13 +186,15 @@ class ValidateCommand extends Command {
    *   TRUE if none of the tests failed, FALSE otherwise.
    */
   protected function runTests(InputInterface $input, OutputInterface $output, callable ...$tests): bool {
+    $result = TRUE;
+
     foreach ($tests as $test) {
       if (!$test($input, $output)) {
-        return FALSE;
+        $result = FALSE;
       }
     }
 
-    return TRUE;
+    return $result;
   }
 
   /**
