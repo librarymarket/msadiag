@@ -45,6 +45,13 @@ class Connection {
   public readonly string $address;
 
   /**
+   * Whether to guard debug logging during authentication.
+   *
+   * @var bool
+   */
+  protected bool $authGuard = FALSE;
+
+  /**
    * The type of connection.
    *
    * @var \LibraryMarket\mstt\SMTP\ConnectionType
@@ -176,6 +183,8 @@ class Connection {
    *
    * @param \LibraryMarket\mstt\SMTP\AuthenticationInterface $mechanism
    *   The SASL mechanism to use for authentication.
+   * @param bool $hide_authentication_replies
+   *   Whether to hide authentication replies in the debug log (default: TRUE).
    *
    * @throws \LibraryMarket\mstt\SMTP\Exception\AuthenticationException
    *   If authentication fails.
@@ -184,7 +193,7 @@ class Connection {
    * @throws \RuntimeException
    *   If there is currently no active connection.
    */
-  public function authenticate(AuthenticationInterface $mechanism): void {
+  public function authenticate(AuthenticationInterface $mechanism, bool $hide_authentication_replies = TRUE): void {
     // Ensure that authentication is supported by the remote server.
     if (!isset($this->extensions) || !\array_key_exists('AUTH', $this->extensions) || !\is_array($this->extensions['AUTH'])) {
       throw new AuthenticationException('The remote server does not support the AUTH extension to SMTP');
@@ -199,6 +208,7 @@ class Connection {
 
     // Begin authentication using the supplied mechanism.
     $this->write("AUTH {$mechanism->name()}");
+    $this->authGuard = $hide_authentication_replies;
 
     try {
       // Continue to delegate the authentication flow to the supplied mechanism
@@ -219,6 +229,7 @@ class Connection {
     finally {
       // Reset the authentication mechanism so that it may be used again.
       $mechanism->reset();
+      $this->authGuard = FALSE;
     }
   }
 
@@ -761,6 +772,11 @@ class Connection {
     }
     if (!@\fwrite($this->socket, $output = "{$line}\r\n")) {
       throw new WriteException('Unable to write to the underlying stream socket');
+    }
+
+    if ($this->authGuard) {
+      // Hide authentication replies in the debug log.
+      $output = "(hidden auth reply)\r\n";
     }
 
     // Update the internal communication history.
