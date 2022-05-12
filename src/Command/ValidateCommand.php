@@ -153,15 +153,10 @@ class ValidateCommand extends Command {
   protected function getConnection(InputInterface $input, ?ConnectionType $connection_type = NULL): ?Connection {
     $connection = new Connection($input->getArgument('server-address'), $input->getArgument('server-port'), $connection_type ?? $this->connectionType, $this->getStreamContext());
 
-    try {
-      $connection->connect();
-      $connection->probe();
+    $connection->connect();
+    $connection->probe();
 
-      return $connection;
-    }
-    catch (ConnectException | CryptoException) {
-      return NULL;
-    }
+    return $connection;
   }
 
   /**
@@ -378,9 +373,9 @@ class ValidateCommand extends Command {
    */
   protected function testEncryptionProtocolVersion(InputInterface $input, OutputInterface $output): bool {
     $connection = $this->getConnection($input);
-    $protocol = $connection?->getMetadata()['crypto']['protocol'] ?? NULL;
 
     $output->write('Testing if TLSv1.2 or greater is being used ... ');
+    $protocol = $connection?->getMetadata()['crypto']['protocol'] ?? NULL;
 
     // Ensure that the server supports a modern encryption protocol.
     if (!\is_string($protocol) || \in_array($protocol, ['TLSv1', 'TLSv1.1'])) {
@@ -404,10 +399,10 @@ class ValidateCommand extends Command {
    *   TRUE if the test passed, FALSE otherwise.
    */
   protected function testPlainTextAuthenticationIsNotAllowed(InputInterface $input, OutputInterface $output): bool {
-    $output->write('Testing if authentication is not allowed via plain-text ... ');
-
     if ($this->connectionType !== ConnectionType::TLS) {
       $connection = $this->getConnection($input, ConnectionType::PlainText);
+
+      $output->write('Testing if authentication is not allowed via plain-text ... ');
 
       if (!$connection || \array_key_exists('AUTH', $connection->extensions)) {
         $output->writeln('<error>FAIL</error>');
@@ -415,10 +410,8 @@ class ValidateCommand extends Command {
       }
 
       $output->writeln('<info>PASS</info>');
-      return TRUE;
     }
 
-    $output->writeln('<fg=cyan;bg=black>SKIP</>');
     return TRUE;
   }
 
