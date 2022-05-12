@@ -9,8 +9,6 @@ use LibraryMarket\mstt\SMTP\Auth\LOGIN;
 use LibraryMarket\mstt\SMTP\Auth\PLAIN;
 use LibraryMarket\mstt\SMTP\AuthenticationInterface;
 use LibraryMarket\mstt\SMTP\Exception\AuthenticationException;
-use LibraryMarket\mstt\SMTP\Exception\ConnectException;
-use LibraryMarket\mstt\SMTP\Exception\CryptoException;
 use LibraryMarket\mstt\SMTP\Connection;
 use LibraryMarket\mstt\SMTP\ConnectionType;
 
