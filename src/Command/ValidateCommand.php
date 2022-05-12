@@ -30,13 +30,6 @@ class ValidateCommand extends Command {
   ];
 
   /**
-   * The current connection.
-   *
-   * @var \LibraryMarket\mstt\SMTP\Connection
-   */
-  protected Connection $connection;
-
-  /**
    * The type of connection to initiate.
    *
    * @var \LibraryMarket\mstt\SMTP\ConnectionType
