@@ -278,7 +278,7 @@ class Connection {
   public function disconnect(): void {
     if (\is_resource($this->socket)) {
       try {
-        @$this->write('QUIT');
+        $this->write('QUIT');
       }
       catch (\Throwable $e) {
       }
@@ -448,8 +448,12 @@ class Connection {
       throw new \UnexpectedValueException('An unexpected error occurred while attempting to determine if authentication is required to submit messages: ' . \implode("\r\n", $response->lines ?? []), $response->code);
     }
     finally {
-      $this->write('RSET');
-      $this->getResponse();
+      try {
+        $this->write('RSET');
+        $this->getResponse();
+      }
+      catch (\Throwable $e) {
+      }
     }
   }
 
@@ -612,7 +616,7 @@ class Connection {
     if (!\is_resource($this->socket)) {
       throw new \RuntimeException('There is currently no active connection');
     }
-    if (!\is_string($result = \fgets($this->socket))) {
+    if (!\is_string($result = @\fgets($this->socket))) {
       throw new ReadException('Unable to read from the underlying stream socket');
     }
 
