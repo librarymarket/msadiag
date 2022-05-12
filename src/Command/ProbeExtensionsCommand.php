@@ -16,7 +16,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * A command to probe the specified SMTP server for its supported extensions.
+ * Probe the specified SMTP server for its supported extensions.
  */
 class ProbeExtensionsCommand extends Command {
 

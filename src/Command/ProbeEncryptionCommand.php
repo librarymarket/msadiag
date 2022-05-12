@@ -15,7 +15,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * A command to probe the specified SMTP server for encryption information.
+ * Probe the specified SMTP server for encryption information.
  */
 class ProbeEncryptionCommand extends Command {
 
