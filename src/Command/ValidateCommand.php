@@ -57,6 +57,7 @@ class ValidateCommand extends Command {
       '',
       'A suitable message submission agent must satisfy the following criteria:',
       '',
+      ' * The server must not allow authentication via plain-text connection.',
       ' * The server must support a modern TLS encryption protocol (TLSv1.2 or TLSv1.3).',
       ' * The server must use a valid certificate, verifiable using the Mozilla CA bundle.',
       ' * The server must support the SMTP AUTH extension.',
@@ -84,6 +85,7 @@ class ValidateCommand extends Command {
     }
 
     $tests = [
+      $this->testPlainTextAuthenticationIsNotAllowed(...),
       $this->testEncryptionProtocolVersion(...),
       $this->testAuthenticationSupport(...),
       $this->testAuthenticationMechanismSupport(...),
@@ -135,11 +137,16 @@ class ValidateCommand extends Command {
   /**
    * Get a new connection to the remote server.
    *
+   * @param \Symfony\Component\Console\Input\InputInterface $input
+   *   The console input.
+   * @param \LibraryMarket\mstt\SMTP\ConnectionType|null $connection_type
+   *   An optional connection type override, or NULL (default: NULL).
+   *
    * @return \LibraryMarket\mstt\SMTP\Connection
    *   A connection to the remote server.
    */
-  protected function getConnection(InputInterface $input) {
-    $connection = new Connection($input->getArgument('server-address'), $input->getArgument('server-port'), $this->connectionType, $this->getStreamContext());
+  protected function getConnection(InputInterface $input, ?ConnectionType $connection_type = NULL) {
+    $connection = new Connection($input->getArgument('server-address'), $input->getArgument('server-port'), $connection_type ?? $this->connectionType, $this->getStreamContext());
 
     try {
       $connection->connect();
@@ -367,6 +374,31 @@ class ValidateCommand extends Command {
     // Ensure that the server supports a modern encryption protocol.
     $protocol = $connection->getMetadata()['crypto']['protocol'] ?? NULL;
     if (!isset($protocol) || \in_array($protocol, ['TLSv1', 'TLSv1.1'])) {
+      $output->writeln('<error>FAIL</error>');
+      return FALSE;
+    }
+
+    $output->writeln('<info>PASS</info>');
+    return TRUE;
+  }
+
+  /**
+   * Tests if authentication is not allowed via plain-text.
+   *
+   * @param \Symfony\Component\Console\Input\InputInterface $input
+   *   The console input.
+   * @param \Symfony\Component\Console\Output\OutputInterface $output
+   *   The console output.
+   *
+   * @return bool
+   *   TRUE if the test passed, FALSE otherwise.
+   */
+  protected function testPlainTextAuthenticationIsNotAllowed(InputInterface $input, OutputInterface $output): bool {
+    $connection = $this->getConnection($input, ConnectionType::PlainText);
+
+    $output->write('Testing if authentication is not allowed via plain-text ... ');
+
+    if (\array_key_exists('AUTH', $connection->extensions)) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
     }
