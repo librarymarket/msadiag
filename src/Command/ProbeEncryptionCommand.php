@@ -2,6 +2,8 @@
 
 namespace LibraryMarket\mstt\Command;
 
+use Composer\CaBundle\CaBundle;
+
 use LibraryMarket\mstt\SMTP\Connection;
 use LibraryMarket\mstt\SMTP\ConnectionType;
 
@@ -55,6 +57,18 @@ class ProbeEncryptionCommand extends Command {
     }
 
     $connection = new Connection($input->getArgument('server-address'), $input->getArgument('server-port'), $connection_type);
+    $connection->setStreamContext(\stream_context_get_default([
+      'ssl' => [
+        'SNI_enabled' => TRUE,
+        'allow_self_signed' => FALSE,
+        'cafile' => CaBundle::getBundledCaBundlePath(),
+        'capath' => \dirname(CaBundle::getBundledCaBundlePath()),
+        'crypto_method' => \STREAM_CRYPTO_METHOD_ANY_CLIENT,
+        'disable_compression' => TRUE,
+        'verify_peer' => TRUE,
+        'verify_peer_name' => TRUE,
+      ],
+    ]));
 
     $connection->connect();
     $connection->probe();
