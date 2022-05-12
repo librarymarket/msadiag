@@ -29,7 +29,7 @@ class ProbeEncryptionCommand extends Command {
     $this->setHelp('This command connects to the specified SMTP server and probes it for information about its encryption support.');
 
     $this->addArgument('server-address', InputArgument::REQUIRED, 'The address of the SMTP server');
-    $this->addArgument('server-port', InputArgument::OPTIONAL, 'The port of the SMTP server', '25');
+    $this->addArgument('server-port', InputArgument::REQUIRED, 'The port of the SMTP server');
 
     $this->addOption('tls', NULL, InputOption::VALUE_NONE, 'Use TLS for encryption instead of STARTTLS');
     $this->addOption('format', NULL, InputOption::VALUE_REQUIRED, 'The output format of this command (console, CSV, or JSON)', 'console');
