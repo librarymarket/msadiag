@@ -4,6 +4,7 @@ namespace LibraryMarket\mstt\Command;
 
 use Composer\CaBundle\CaBundle;
 
+use LibraryMarket\mstt\Command\Exception\TestFailureException;
 use LibraryMarket\mstt\SMTP\Auth\CRAMMD5;
 use LibraryMarket\mstt\SMTP\Auth\LOGIN;
 use LibraryMarket\mstt\SMTP\Auth\PLAIN;
@@ -17,6 +18,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
  * Validate the supplied SMTP server as a suitable message submission agent.
@@ -35,6 +37,27 @@ class ValidateCommand extends Command {
    * @var \LibraryMarket\mstt\SMTP\ConnectionType
    */
   protected ConnectionType $connectionType = ConnectionType::STARTTLS;
+
+  /**
+   * The console input.
+   *
+   * @var \Symfony\Component\Console\Input\InputInterface
+   */
+  protected InputInterface $input;
+
+  /**
+   * The styled console input/output.
+   *
+   * @var \Symfony\Component\Console\Style\SymfonyStyle
+   */
+  protected SymfonyStyle $io;
+
+  /**
+   * The console output.
+   *
+   * @var \Symfony\Component\Console\Output\OutputInterface
+   */
+  protected OutputInterface $output;
 
   /**
    * {@inheritdoc}
@@ -65,6 +88,7 @@ class ValidateCommand extends Command {
     $this->addArgument('password', InputArgument::REQUIRED, 'The password to use for authentication');
 
     $this->addOption('continue-after-failure', NULL, InputOption::VALUE_NONE, 'Run all tests instead of stopping after the first failure');
+    $this->addOption('debug', NULL, InputOption::VALUE_NONE, 'Enable debug messages for test failures');
     $this->addOption('strict', NULL, InputOption::VALUE_NONE, 'Run strict tests in addition to all other tests');
     $this->addOption('tls', NULL, InputOption::VALUE_NONE, 'Use TLS for encryption instead of STARTTLS');
   }
@@ -73,7 +97,12 @@ class ValidateCommand extends Command {
    * {@inheritdoc}
    */
   protected function execute(InputInterface $input, OutputInterface $output): int {
-    if ($input->getOption('tls')) {
+    $this->io = new SymfonyStyle($input, $output);
+
+    $this->input = $input;
+    $this->output = $output;
+
+    if ($this->input->getOption('tls')) {
       $this->connectionType = ConnectionType::TLS;
     }
 
@@ -86,17 +115,17 @@ class ValidateCommand extends Command {
       $this->testAuthenticationWithValidCredentials(...),
     ];
 
-    if ($input->getOption('strict')) {
+    if ($this->input->getOption('strict')) {
       \array_unshift($tests, $this->testPlainTextAuthenticationIsNotAllowed(...));
     }
 
     // Run all remaining test cases.
-    if (!$this->runTests($input, $output, ...$tests)) {
+    if (!$this->runTests(...$tests)) {
       return Command::FAILURE;
     }
 
-    $output->writeln('');
-    $output->writeln('<info>The server passed all tests.</info>');
+    $this->output->writeln('');
+    $this->output->writeln('<info>The server passed all tests.</info>');
 
     return Command::SUCCESS;
   }
@@ -114,10 +143,10 @@ class ValidateCommand extends Command {
    * @throws \LibraryMarket\mstt\SMTP\Exception\AuthenticationException
    *   If unable to find a matching SASL mechanism for authentication.
    *
-   * @return \LibraryMarket\mstt\SMTP\AuthenticationInterface|null
-   *   An authentication mechanism, or NULL if there is no compatible mechanism.
+   * @return \LibraryMarket\mstt\SMTP\AuthenticationInterface
+   *   A compatible authentication mechanism using the supplied credentials.
    */
-  protected function getAuthenticationMechanism(array $mechanisms, string $username, string $password): ?AuthenticationInterface {
+  protected function getAuthenticationMechanism(array $mechanisms, string $username, string $password): AuthenticationInterface {
     try {
       return match (\current(\array_intersect(self::SUPPORTED_SASL_MECHANISMS, $mechanisms))) {
         'CRAM-MD5' => new CRAMMD5($username, $password),
@@ -133,16 +162,20 @@ class ValidateCommand extends Command {
   /**
    * Get a new connection to the remote server.
    *
-   * @param \Symfony\Component\Console\Input\InputInterface $input
-   *   The console input.
    * @param \LibraryMarket\mstt\SMTP\ConnectionType|null $connection_type
    *   An optional connection type override, or NULL (default: NULL).
    *
-   * @return \LibraryMarket\mstt\SMTP\Connection|null
-   *   A connection to the remote server, or NULL on failure.
+   * @return \LibraryMarket\mstt\SMTP\Connection
+   *   A connection to the remote server.
    */
-  protected function getConnection(InputInterface $input, ?ConnectionType $connection_type = NULL): ?Connection {
-    $connection = new Connection($input->getArgument('server-address'), $input->getArgument('server-port'), $connection_type ?? $this->connectionType, $this->getStreamContext());
+  protected function getConnection(?ConnectionType $connection_type = NULL): Connection {
+    $address = $this->input->getArgument('server-address');
+    $port = $this->input->getArgument('server-port');
+
+    $connection_type ??= $this->connectionType;
+    $context = $this->getStreamContext();
+
+    $connection = new Connection($address, $port, $connection_type, $context);
 
     $connection->connect();
     $connection->probe();
@@ -174,24 +207,27 @@ class ValidateCommand extends Command {
   /**
    * Run a sequence of tests and return the aggregate result.
    *
-   * @param \Symfony\Component\Console\Input\InputInterface $input
-   *   The console input.
-   * @param \Symfony\Component\Console\Output\OutputInterface $output
-   *   The console output.
    * @param callable ...$tests
    *   A sequence of tests to run.
    *
    * @return bool
    *   TRUE if none of the tests failed, FALSE otherwise.
    */
-  protected function runTests(InputInterface $input, OutputInterface $output, callable ...$tests): bool {
+  protected function runTests(callable ...$tests): bool {
     $result = TRUE;
 
     foreach ($tests as $test) {
-      if (!$test($input, $output)) {
+      try {
+        $test();
+      }
+      catch (TestFailureException $e) {
         $result = FALSE;
 
-        if (!$input->getOption('continue-after-failure')) {
+        if ($this->input->getOption('debug') && $message = \preg_split('/\\r?\\n/', $e->getMessage())) {
+          $this->io->text($message);
+        }
+
+        if (!$this->input->getOption('continue-after-failure')) {
           break;
         }
       }
@@ -203,207 +239,165 @@ class ValidateCommand extends Command {
   /**
    * Tests if authentication is required to submit messages.
    *
-   * @param \Symfony\Component\Console\Input\InputInterface $input
-   *   The console input.
-   * @param \Symfony\Component\Console\Output\OutputInterface $output
-   *   The console output.
-   *
-   * @return bool
-   *   TRUE if the test passed, FALSE otherwise.
+   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   *   If the test does not succeed.
    */
-  protected function testAuthenticationIsRequiredForSubmission(InputInterface $input, OutputInterface $output) {
-    $connection = $this->getConnection($input);
-
-    $output->write('Testing if authentication is required to submit messages ... ');
+  protected function testAuthenticationIsRequiredForSubmission(): void {
+    $connection = $this->getConnection();
+    $this->output->write('Testing if authentication is required to submit messages ... ');
 
     // Ensure that the server requires authentication to submit messages.
-    if (!$connection || !$connection->isAuthenticationRequired()) {
-      $output->writeln('<error>FAIL</error>');
-      return FALSE;
+    if (!$connection->isAuthenticationRequired()) {
+      $this->output->writeln('<error>FAIL</error>');
+      throw new TestFailureException($connection->debug());
     }
 
-    $output->writeln('<info>PASS</info>');
-    return TRUE;
+    $this->output->writeln('<info>PASS</info>');
   }
 
   /**
    * Tests if one of CRAM-MD5, LOGIN, or PLAIN are supported.
    *
-   * @param \Symfony\Component\Console\Input\InputInterface $input
-   *   The console input.
-   * @param \Symfony\Component\Console\Output\OutputInterface $output
-   *   The console output.
-   *
-   * @return bool
-   *   TRUE if the test passed, FALSE otherwise.
+   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   *   If the test does not succeed.
    */
-  protected function testAuthenticationMechanismSupport(InputInterface $input, OutputInterface $output): bool {
-    $connection = $this->getConnection($input);
-
-    $output->write('Testing if one of CRAM-MD5, LOGIN, or PLAIN are supported ... ');
+  protected function testAuthenticationMechanismSupport(): void {
+    $connection = $this->getConnection();
+    $this->output->write('Testing if one of CRAM-MD5, LOGIN, or PLAIN are supported ... ');
 
     // Ensure that the server has at least one of the supported SASL mechanisms.
-    if (!$connection || !\is_string($mechanism = \current(\array_intersect($connection->extensions['AUTH'] ?? [], self::SUPPORTED_SASL_MECHANISMS)))) {
-      $output->writeln('<error>FAIL</error>');
-      return FALSE;
+    $mechanism = \current(\array_intersect($connection->extensions['AUTH'] ?? [], self::SUPPORTED_SASL_MECHANISMS));
+    if (!\is_string($mechanism)) {
+      $this->output->writeln('<error>FAIL</error>');
+      throw new TestFailureException($connection->debug());
     }
 
-    $output->writeln('<info>PASS</info>');
-    return TRUE;
+    $this->output->writeln('<info>PASS</info>');
   }
 
   /**
    * Tests if the SMTP AUTH extension is supported.
    *
-   * @param \Symfony\Component\Console\Input\InputInterface $input
-   *   The console input.
-   * @param \Symfony\Component\Console\Output\OutputInterface $output
-   *   The console output.
-   *
-   * @return bool
-   *   TRUE if the test passed, FALSE otherwise.
+   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   *   If the test does not succeed.
    */
-  protected function testAuthenticationSupport(InputInterface $input, OutputInterface $output): bool {
-    $connection = $this->getConnection($input);
-
-    $output->write('Testing if the SMTP AUTH extension is supported ... ');
+  protected function testAuthenticationSupport(): void {
+    $connection = $this->getConnection();
+    $this->output->write('Testing if the SMTP AUTH extension is supported ... ');
 
     // Ensure that the server supports the SMTP AUTH extension.
-    if (!$connection || !\array_key_exists('AUTH', $connection->extensions ?? [])) {
-      $output->writeln('<error>FAIL</error>');
-      return FALSE;
+    if (!\array_key_exists('AUTH', $connection->extensions ?? [])) {
+      $this->output->writeln('<error>FAIL</error>');
+      throw new TestFailureException($connection->debug());
     }
 
-    $output->writeln('<info>PASS</info>');
-    return TRUE;
+    $this->output->writeln('<info>PASS</info>');
   }
 
   /**
    * Tests authentication requirements with invalid credentials.
    *
-   * @param \Symfony\Component\Console\Input\InputInterface $input
-   *   The console input.
-   * @param \Symfony\Component\Console\Output\OutputInterface $output
-   *   The console output.
-   *
-   * @return bool
-   *   TRUE if the test passed, FALSE otherwise.
+   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   *   If the test does not succeed.
    */
-  protected function testAuthenticationWithInvalidCredentials(InputInterface $input, OutputInterface $output): bool {
-    $connection = $this->getConnection($input);
+  protected function testAuthenticationWithInvalidCredentials(): void {
+    $connection = $this->getConnection();
+    $this->output->write('Testing if authentication fails with invalid credentials ... ');
 
-    $output->write('Testing if authentication fails with invalid credentials ... ');
+    try {
+      // Retrieve an authentication mechanism with invalid credentials.
+      $mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'] ?? [], \bin2hex(\random_bytes(8)), \bin2hex(\random_bytes(8)));
+    }
+    catch (AuthenticationException) {
+      // If we reach this point, there are no compatible SASL mechanisms.
+      $this->output->writeln('<error>FAIL</error>');
+      throw new TestFailureException($connection->debug());
+    }
 
     try {
       // Attempt to authenticate using invalid credentials.
-      if ($connection && $mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'] ?? [], \bin2hex(\random_bytes(8)), \bin2hex(\random_bytes(8)))) {
-        $connection->authenticate($mechanism);
-      }
+      $connection->authenticate($mechanism);
 
       // If we reach this point, the server accepted random credentials.
-      $output->writeln('<error>FAIL</error>');
-      return FALSE;
+      $this->output->writeln('<error>FAIL</error>');
+      throw new TestFailureException($connection->debug());
     }
     catch (AuthenticationException) {
-      $output->writeln('<info>PASS</info>');
-      return TRUE;
+      $this->output->writeln('<info>PASS</info>');
     }
   }
 
   /**
    * Tests authentication requirements with valid credentials.
    *
-   * @param \Symfony\Component\Console\Input\InputInterface $input
-   *   The console input.
-   * @param \Symfony\Component\Console\Output\OutputInterface $output
-   *   The console output.
-   *
-   * @return bool
-   *   TRUE if the test passed, FALSE otherwise.
+   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   *   If the test does not succeed.
    */
-  protected function testAuthenticationWithValidCredentials(InputInterface $input, OutputInterface $output): bool {
-    $connection = $this->getConnection($input);
-
-    $output->write('Testing if authentication succeeds with valid credentials ... ');
+  protected function testAuthenticationWithValidCredentials(): void {
+    $connection = $this->getConnection();
+    $this->output->write('Testing if authentication succeeds with valid credentials ... ');
 
     try {
       // Attempt to authenticate using the supplied credentials.
-      if ($mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'] ?? [], $input->getArgument('username'), $input->getArgument('password'))) {
-        $connection->authenticate($mechanism);
-        $output->writeln('<info>PASS</info>');
-      }
+      $connection->authenticate($this->getAuthenticationMechanism($connection->extensions['AUTH'] ?? [], $this->input->getArgument('username'), $this->input->getArgument('password')));
+      $this->output->writeln('<info>PASS</info>');
     }
     catch (AuthenticationException) {
       // If we reach this point, the server did not accept our credentials.
-      $output->writeln('<error>FAIL</error>');
-      return FALSE;
+      $this->output->writeln('<error>FAIL</error>');
+      throw new TestFailureException($connection->debug());
     }
 
-    $output->write('Testing if authentication is no longer required to submit messages ... ');
+    $this->output->write('Testing if authentication is no longer required to submit messages ... ');
 
     // Ensure that the server no longer requires authentication.
-    if ($connection && $connection->isAuthenticationRequired()) {
-      $output->writeln('<error>FAIL</error>');
-      return FALSE;
+    if ($connection->isAuthenticationRequired()) {
+      $this->output->writeln('<error>FAIL</error>');
+      throw new TestFailureException($connection->debug());
     }
 
-    $output->writeln('<info>PASS</info>');
-    return TRUE;
+    $this->output->writeln('<info>PASS</info>');
   }
 
   /**
    * Tests if TLSv1.2 or greater is being used.
    *
-   * @param \Symfony\Component\Console\Input\InputInterface $input
-   *   The console input.
-   * @param \Symfony\Component\Console\Output\OutputInterface $output
-   *   The console output.
-   *
-   * @return bool
-   *   TRUE if the test passed, FALSE otherwise.
+   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   *   If the test does not succeed.
    */
-  protected function testEncryptionProtocolVersion(InputInterface $input, OutputInterface $output): bool {
-    $connection = $this->getConnection($input);
-
-    $output->write('Testing if TLSv1.2 or greater is being used ... ');
-    $protocol = $connection?->getMetadata()['crypto']['protocol'] ?? NULL;
+  protected function testEncryptionProtocolVersion(): void {
+    $connection = $this->getConnection();
+    $this->output->write('Testing if TLSv1.2 or greater is being used ... ');
 
     // Ensure that the server supports a modern encryption protocol.
+    $protocol = $connection->getMetadata()['crypto']['protocol'] ?? NULL;
     if (!\is_string($protocol) || \in_array($protocol, ['TLSv1', 'TLSv1.1'])) {
-      $output->writeln('<error>FAIL</error>');
-      return FALSE;
+      $this->output->writeln('<error>FAIL</error>');
+      throw new TestFailureException($connection->debug());
     }
 
-    $output->writeln('<info>PASS</info>');
-    return TRUE;
+    $this->output->writeln('<info>PASS</info>');
   }
 
   /**
    * Tests if authentication is not allowed via plain-text.
    *
-   * @param \Symfony\Component\Console\Input\InputInterface $input
-   *   The console input.
-   * @param \Symfony\Component\Console\Output\OutputInterface $output
-   *   The console output.
-   *
-   * @return bool
-   *   TRUE if the test passed, FALSE otherwise.
+   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   *   If the test does not succeed.
    */
-  protected function testPlainTextAuthenticationIsNotAllowed(InputInterface $input, OutputInterface $output): bool {
+  protected function testPlainTextAuthenticationIsNotAllowed(): void {
     if ($this->connectionType !== ConnectionType::TLS) {
-      $connection = $this->getConnection($input, ConnectionType::PlainText);
+      $connection = $this->getConnection(ConnectionType::PlainText);
+      $this->output->write('Testing if authentication is not allowed via plain-text ... ');
 
-      $output->write('Testing if authentication is not allowed via plain-text ... ');
-
-      if (!$connection || \array_key_exists('AUTH', $connection->extensions)) {
-        $output->writeln('<error>FAIL</error>');
-        return FALSE;
+      if (\array_key_exists('AUTH', $connection->extensions ?? [])) {
+        $this->output->writeln('<error>FAIL</error>');
+        throw new TestFailureException($connection->debug());
       }
 
-      $output->writeln('<info>PASS</info>');
+      $this->output->writeln('<info>PASS</info>');
     }
 
-    return TRUE;
   }
 
 }
