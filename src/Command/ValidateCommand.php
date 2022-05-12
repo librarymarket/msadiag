@@ -247,7 +247,7 @@ class ValidateCommand extends Command {
     $output->write('Testing if one of CRAM-MD5, LOGIN, or PLAIN are supported ... ');
 
     // Ensure that the server has at least one of the supported SASL mechanisms.
-    if (!\is_string($mechanism = \current(\array_intersect($connection->extensions['AUTH'], self::SUPPORTED_SASL_MECHANISMS)))) {
+    if (!isset($connection->extensions) || !\is_string($mechanism = \current(\array_intersect($connection->extensions['AUTH'], self::SUPPORTED_SASL_MECHANISMS)))) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
     }
@@ -273,7 +273,7 @@ class ValidateCommand extends Command {
     $output->write('Testing if the SMTP AUTH extension is supported ... ');
 
     // Ensure that the server supports the SMTP AUTH extension.
-    if (!\array_key_exists('AUTH', $connection->extensions)) {
+    if (!isset($connection->extensions) || !\array_key_exists('AUTH', $connection->extensions)) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
     }
@@ -300,7 +300,7 @@ class ValidateCommand extends Command {
 
     try {
       // Attempt to authenticate using invalid credentials.
-      if ($mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'], \bin2hex(\random_bytes(8)), \bin2hex(\random_bytes(8)))) {
+      if (isset($connection->extensions) && $mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'], \bin2hex(\random_bytes(8)), \bin2hex(\random_bytes(8)))) {
         $connection->authenticate($mechanism);
       }
 
@@ -332,7 +332,7 @@ class ValidateCommand extends Command {
 
     try {
       // Attempt to authenticate using the supplied credentials.
-      if ($mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'], $input->getArgument('username'), $input->getArgument('password'))) {
+      if (isset($connection->extensions) && $mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'], $input->getArgument('username'), $input->getArgument('password'))) {
         $connection->authenticate($mechanism);
         $output->writeln('<info>PASS</info>');
       }
