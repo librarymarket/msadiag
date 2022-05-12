@@ -394,16 +394,21 @@ class ValidateCommand extends Command {
    *   TRUE if the test passed, FALSE otherwise.
    */
   protected function testPlainTextAuthenticationIsNotAllowed(InputInterface $input, OutputInterface $output): bool {
-    $connection = $this->getConnection($input, ConnectionType::PlainText);
+    if ($this->connectionType !== ConnectionType::TLS) {
+      $connection = $this->getConnection($input, ConnectionType::PlainText);
 
-    $output->write('Testing if authentication is not allowed via plain-text ... ');
+      $output->write('Testing if authentication is not allowed via plain-text ... ');
 
-    if (\array_key_exists('AUTH', $connection->extensions)) {
-      $output->writeln('<error>FAIL</error>');
-      return FALSE;
+      if (\array_key_exists('AUTH', $connection->extensions)) {
+        $output->writeln('<error>FAIL</error>');
+        return FALSE;
+      }
+
+      $output->writeln('<info>PASS</info>');
+      return TRUE;
     }
 
-    $output->writeln('<info>PASS</info>');
+    $output->writeln('<fg=cyan;bg=black>SKIP</>');
     return TRUE;
   }
 
