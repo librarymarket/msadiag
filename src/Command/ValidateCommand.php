@@ -115,7 +115,7 @@ class ValidateCommand extends Command {
    * @param string $password
    *   The password to use for authentication.
    *
-   * @throws \RuntimeException
+   * @throws \LibraryMarket\mstt\SMTP\Exception\AuthenticationException
    *   If unable to find a matching SASL mechanism for authentication.
    *
    * @return \LibraryMarket\mstt\SMTP\AuthenticationInterface|null
@@ -130,7 +130,7 @@ class ValidateCommand extends Command {
       };
     }
     catch (\UnhandledMatchError) {
-      throw new \RuntimeException('Unable to find a matching SASL mechanism for authentication');
+      throw new AuthenticationException('Unable to find a matching SASL mechanism for authentication');
     }
   }
 
@@ -142,20 +142,21 @@ class ValidateCommand extends Command {
    * @param \LibraryMarket\mstt\SMTP\ConnectionType|null $connection_type
    *   An optional connection type override, or NULL (default: NULL).
    *
-   * @return \LibraryMarket\mstt\SMTP\Connection
-   *   A connection to the remote server.
+   * @return \LibraryMarket\mstt\SMTP\Connection|null
+   *   A connection to the remote server, or NULL on failure.
    */
-  protected function getConnection(InputInterface $input, ?ConnectionType $connection_type = NULL) {
+  protected function getConnection(InputInterface $input, ?ConnectionType $connection_type = NULL): ?Connection {
     $connection = new Connection($input->getArgument('server-address'), $input->getArgument('server-port'), $connection_type ?? $this->connectionType, $this->getStreamContext());
 
     try {
       $connection->connect();
       $connection->probe();
+
+      return $connection;
     }
     catch (ConnectException | CryptoException) {
+      return NULL;
     }
-
-    return $connection;
   }
 
   /**
@@ -221,7 +222,7 @@ class ValidateCommand extends Command {
     $output->write('Testing if authentication is required to submit messages ... ');
 
     // Ensure that the server requires authentication to submit messages.
-    if (!$connection->isAuthenticationRequired()) {
+    if (!$connection || !$connection->isAuthenticationRequired()) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
     }
@@ -247,7 +248,7 @@ class ValidateCommand extends Command {
     $output->write('Testing if one of CRAM-MD5, LOGIN, or PLAIN are supported ... ');
 
     // Ensure that the server has at least one of the supported SASL mechanisms.
-    if (!isset($connection->extensions) || !\is_string($mechanism = \current(\array_intersect($connection->extensions['AUTH'], self::SUPPORTED_SASL_MECHANISMS)))) {
+    if (!$connection || !\is_string($mechanism = \current(\array_intersect($connection->extensions['AUTH'] ?? [], self::SUPPORTED_SASL_MECHANISMS)))) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
     }
@@ -273,7 +274,7 @@ class ValidateCommand extends Command {
     $output->write('Testing if the SMTP AUTH extension is supported ... ');
 
     // Ensure that the server supports the SMTP AUTH extension.
-    if (!isset($connection->extensions) || !\array_key_exists('AUTH', $connection->extensions)) {
+    if (!$connection || !\array_key_exists('AUTH', $connection->extensions ?? [])) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
     }
@@ -300,7 +301,7 @@ class ValidateCommand extends Command {
 
     try {
       // Attempt to authenticate using invalid credentials.
-      if (isset($connection->extensions) && $mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'], \bin2hex(\random_bytes(8)), \bin2hex(\random_bytes(8)))) {
+      if ($connection && $mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'] ?? [], \bin2hex(\random_bytes(8)), \bin2hex(\random_bytes(8)))) {
         $connection->authenticate($mechanism);
       }
 
@@ -332,7 +333,7 @@ class ValidateCommand extends Command {
 
     try {
       // Attempt to authenticate using the supplied credentials.
-      if (isset($connection->extensions) && $mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'], $input->getArgument('username'), $input->getArgument('password'))) {
+      if ($mechanism = $this->getAuthenticationMechanism($connection->extensions['AUTH'] ?? [], $input->getArgument('username'), $input->getArgument('password'))) {
         $connection->authenticate($mechanism);
         $output->writeln('<info>PASS</info>');
       }
@@ -346,7 +347,7 @@ class ValidateCommand extends Command {
     $output->write('Testing if authentication is no longer required to submit messages ... ');
 
     // Ensure that the server no longer requires authentication.
-    if ($connection->isAuthenticationRequired()) {
+    if ($connection && $connection->isAuthenticationRequired()) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
     }
@@ -368,12 +369,12 @@ class ValidateCommand extends Command {
    */
   protected function testEncryptionProtocolVersion(InputInterface $input, OutputInterface $output): bool {
     $connection = $this->getConnection($input);
+    $protocol = $connection?->getMetadata()['crypto']['protocol'] ?? NULL;
 
     $output->write('Testing if TLSv1.2 or greater is being used ... ');
 
     // Ensure that the server supports a modern encryption protocol.
-    $protocol = $connection->getMetadata()['crypto']['protocol'] ?? NULL;
-    if (!isset($protocol) || \in_array($protocol, ['TLSv1', 'TLSv1.1'])) {
+    if (!\is_string($protocol) || \in_array($protocol, ['TLSv1', 'TLSv1.1'])) {
       $output->writeln('<error>FAIL</error>');
       return FALSE;
     }
@@ -394,12 +395,12 @@ class ValidateCommand extends Command {
    *   TRUE if the test passed, FALSE otherwise.
    */
   protected function testPlainTextAuthenticationIsNotAllowed(InputInterface $input, OutputInterface $output): bool {
+    $output->write('Testing if authentication is not allowed via plain-text ... ');
+
     if ($this->connectionType !== ConnectionType::TLS) {
       $connection = $this->getConnection($input, ConnectionType::PlainText);
 
-      $output->write('Testing if authentication is not allowed via plain-text ... ');
-
-      if (\array_key_exists('AUTH', $connection->extensions)) {
+      if (!$connection || \array_key_exists('AUTH', $connection->extensions)) {
         $output->writeln('<error>FAIL</error>');
         return FALSE;
       }
