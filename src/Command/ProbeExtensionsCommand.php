@@ -156,7 +156,9 @@ class ProbeExtensionsCommand extends Command {
     \rewind($fh);
 
     // Write the contents of the buffer to the supplied output.
-    $output->write(\stream_get_contents($fh));
+    if ($result = \stream_get_contents($fh)) {
+      $output->write($result);
+    }
 
     \fclose($fh);
   }
