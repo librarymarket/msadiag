@@ -171,7 +171,7 @@ class ValidateCommand extends Command {
    */
   protected function getConnection(?ConnectionType $connection_type = NULL): Connection {
     $address = $this->input->getArgument('server-address');
-    $port = $this->input->getArgument('server-port');
+    $port = \intval($this->input->getArgument('server-port'));
 
     $connection_type ??= $this->connectionType;
     $context = $this->getStreamContext();

@@ -68,7 +68,10 @@ class ProbeExtensionsCommand extends Command {
       throw new \InvalidArgumentException('The supplied encryption type is invalid: ' . $input->getOption('encryption-type'));
     }
 
-    $connection = new Connection($input->getArgument('server-address'), $input->getArgument('server-port'), $connection_type);
+    $address = $input->getArgument('server-address');
+    $port = \intval($input->getArgument('server-port'));
+
+    $connection = new Connection($address, $port, $connection_type);
     $connection->setStreamContext(\stream_context_get_default([
       'ssl' => [
         'SNI_enabled' => TRUE,
