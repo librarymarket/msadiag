@@ -122,13 +122,13 @@ class ValidateCommand extends Command {
 
     // Run all remaining test cases.
     if (!$this->runTests(...$tests)) {
-      return Command::FAILURE;
+      return 1;
     }
 
     $this->output->writeln('');
     $this->output->writeln('<info>The server passed all tests.</info>');
 
-    return Command::SUCCESS;
+    return 0;
   }
 
   /**

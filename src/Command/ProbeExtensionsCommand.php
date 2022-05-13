@@ -95,7 +95,7 @@ class ProbeExtensionsCommand extends Command {
 
     $format($output, $extensions);
 
-    return Command::SUCCESS;
+    return 0;
   }
 
   /**

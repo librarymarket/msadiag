@@ -90,7 +90,7 @@ class ProbeEncryptionCommand extends Command {
 
     $format($output, $crypto);
 
-    return Command::SUCCESS;
+    return 0;
   }
 
   /**
