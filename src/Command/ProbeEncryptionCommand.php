@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types = 1);
+
 namespace LibraryMarket\msadiag\Command;
 
 use Composer\CaBundle\CaBundle;
