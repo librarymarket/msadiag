@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace LibraryMarket\mstt\SMTP;
+namespace LibraryMarket\msadiag\SMTP;
 
 /**
  * Describes a SASL authentication mechanism.

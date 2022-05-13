@@ -1,11 +1,11 @@
 <?php
 
-namespace LibraryMarket\mstt\Command;
+namespace LibraryMarket\msadiag\Command;
 
 use Composer\CaBundle\CaBundle;
 
-use LibraryMarket\mstt\SMTP\Connection;
-use LibraryMarket\mstt\SMTP\ConnectionType;
+use LibraryMarket\msadiag\SMTP\Connection;
+use LibraryMarket\msadiag\SMTP\ConnectionType;
 
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;

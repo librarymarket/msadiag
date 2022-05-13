@@ -1,17 +1,17 @@
 <?php
 
-namespace LibraryMarket\mstt\Command;
+namespace LibraryMarket\msadiag\Command;
 
 use Composer\CaBundle\CaBundle;
 
-use LibraryMarket\mstt\Command\Exception\TestFailureException;
-use LibraryMarket\mstt\SMTP\Auth\CRAMMD5;
-use LibraryMarket\mstt\SMTP\Auth\LOGIN;
-use LibraryMarket\mstt\SMTP\Auth\PLAIN;
-use LibraryMarket\mstt\SMTP\AuthenticationInterface;
-use LibraryMarket\mstt\SMTP\Exception\AuthenticationException;
-use LibraryMarket\mstt\SMTP\Connection;
-use LibraryMarket\mstt\SMTP\ConnectionType;
+use LibraryMarket\msadiag\Command\Exception\TestFailureException;
+use LibraryMarket\msadiag\SMTP\Auth\CRAMMD5;
+use LibraryMarket\msadiag\SMTP\Auth\LOGIN;
+use LibraryMarket\msadiag\SMTP\Auth\PLAIN;
+use LibraryMarket\msadiag\SMTP\AuthenticationInterface;
+use LibraryMarket\msadiag\SMTP\Exception\AuthenticationException;
+use LibraryMarket\msadiag\SMTP\Connection;
+use LibraryMarket\msadiag\SMTP\ConnectionType;
 
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -34,7 +34,7 @@ class ValidateCommand extends Command {
   /**
    * The type of connection to initiate.
    *
-   * @var \LibraryMarket\mstt\SMTP\ConnectionType
+   * @var \LibraryMarket\msadiag\SMTP\ConnectionType
    */
   protected ConnectionType $connectionType = ConnectionType::STARTTLS;
 
@@ -139,10 +139,10 @@ class ValidateCommand extends Command {
    * @param string $password
    *   The password to use for authentication.
    *
-   * @throws \LibraryMarket\mstt\SMTP\Exception\AuthenticationException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\AuthenticationException
    *   If unable to find a matching SASL mechanism for authentication.
    *
-   * @return \LibraryMarket\mstt\SMTP\AuthenticationInterface
+   * @return \LibraryMarket\msadiag\SMTP\AuthenticationInterface
    *   A compatible authentication mechanism using the supplied credentials.
    */
   protected function getAuthenticationMechanism(array $mechanisms, string $username, string $password): AuthenticationInterface {
@@ -161,10 +161,10 @@ class ValidateCommand extends Command {
   /**
    * Get a new connection to the remote server.
    *
-   * @param \LibraryMarket\mstt\SMTP\ConnectionType|null $connection_type
+   * @param \LibraryMarket\msadiag\SMTP\ConnectionType|null $connection_type
    *   An optional connection type override, or NULL (default: NULL).
    *
-   * @return \LibraryMarket\mstt\SMTP\Connection
+   * @return \LibraryMarket\msadiag\SMTP\Connection
    *   A connection to the remote server.
    */
   protected function getConnection(?ConnectionType $connection_type = NULL): Connection {
@@ -241,7 +241,7 @@ class ValidateCommand extends Command {
   /**
    * Tests if authentication is required to submit messages.
    *
-   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   * @throws \LibraryMarket\msadiag\Command\Exception\TestFailureException
    *   If the test does not succeed.
    */
   protected function testAuthenticationIsRequiredForSubmission(): void {
@@ -260,7 +260,7 @@ class ValidateCommand extends Command {
   /**
    * Tests if one of CRAM-MD5, LOGIN, or PLAIN are supported.
    *
-   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   * @throws \LibraryMarket\msadiag\Command\Exception\TestFailureException
    *   If the test does not succeed.
    */
   protected function testAuthenticationMechanismSupport(): void {
@@ -280,7 +280,7 @@ class ValidateCommand extends Command {
   /**
    * Tests if the SMTP AUTH extension is supported.
    *
-   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   * @throws \LibraryMarket\msadiag\Command\Exception\TestFailureException
    *   If the test does not succeed.
    */
   protected function testAuthenticationSupport(): void {
@@ -299,7 +299,7 @@ class ValidateCommand extends Command {
   /**
    * Tests authentication requirements with invalid credentials.
    *
-   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   * @throws \LibraryMarket\msadiag\Command\Exception\TestFailureException
    *   If the test does not succeed.
    */
   protected function testAuthenticationWithInvalidCredentials(): void {
@@ -332,7 +332,7 @@ class ValidateCommand extends Command {
   /**
    * Tests authentication requirements with valid credentials.
    *
-   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   * @throws \LibraryMarket\msadiag\Command\Exception\TestFailureException
    *   If the test does not succeed.
    */
   protected function testAuthenticationWithValidCredentials(): void {
@@ -364,7 +364,7 @@ class ValidateCommand extends Command {
   /**
    * Tests if TLSv1.2 or greater is being used.
    *
-   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   * @throws \LibraryMarket\msadiag\Command\Exception\TestFailureException
    *   If the test does not succeed.
    */
   protected function testEncryptionProtocolVersion(): void {
@@ -384,7 +384,7 @@ class ValidateCommand extends Command {
   /**
    * Tests if authentication is not allowed via plain-text.
    *
-   * @throws \LibraryMarket\mstt\Command\Exception\TestFailureException
+   * @throws \LibraryMarket\msadiag\Command\Exception\TestFailureException
    *   If the test does not succeed.
    */
   protected function testPlainTextAuthenticationIsNotAllowed(): void {

@@ -2,15 +2,15 @@
 
 declare(strict_types = 1);
 
-namespace LibraryMarket\mstt\SMTP;
+namespace LibraryMarket\msadiag\SMTP;
 
-use LibraryMarket\mstt\SMTP\Exception\AuthenticationException;
-use LibraryMarket\mstt\SMTP\Exception\ClientGreetingException;
-use LibraryMarket\mstt\SMTP\Exception\ConnectException;
-use LibraryMarket\mstt\SMTP\Exception\CryptoException;
-use LibraryMarket\mstt\SMTP\Exception\ReadException;
-use LibraryMarket\mstt\SMTP\Exception\ServerGreetingException;
-use LibraryMarket\mstt\SMTP\Exception\WriteException;
+use LibraryMarket\msadiag\SMTP\Exception\AuthenticationException;
+use LibraryMarket\msadiag\SMTP\Exception\ClientGreetingException;
+use LibraryMarket\msadiag\SMTP\Exception\ConnectException;
+use LibraryMarket\msadiag\SMTP\Exception\CryptoException;
+use LibraryMarket\msadiag\SMTP\Exception\ReadException;
+use LibraryMarket\msadiag\SMTP\Exception\ServerGreetingException;
+use LibraryMarket\msadiag\SMTP\Exception\WriteException;
 
 /**
  * Facilitates connecting to a message submission agent via (E)SMTP.
@@ -54,7 +54,7 @@ class Connection {
   /**
    * The type of connection.
    *
-   * @var \LibraryMarket\mstt\SMTP\ConnectionType
+   * @var \LibraryMarket\msadiag\SMTP\ConnectionType
    */
   public readonly ConnectionType $connectionType;
 
@@ -131,7 +131,7 @@ class Connection {
    *   The IP address or hostname of the message submission agent.
    * @param int $port
    *   The port used by the message submission agent.
-   * @param \LibraryMarket\mstt\SMTP\ConnectionType $connection_type
+   * @param \LibraryMarket\msadiag\SMTP\ConnectionType $connection_type
    *   The type of connection to establish to the message submission agent.
    * @param resource|null $stream_context
    *   The stream context to use for new connections.
@@ -181,14 +181,14 @@ class Connection {
    * by this method. Consult the documentation of the supplied SASL mechanism
    * for more information.
    *
-   * @param \LibraryMarket\mstt\SMTP\AuthenticationInterface $mechanism
+   * @param \LibraryMarket\msadiag\SMTP\AuthenticationInterface $mechanism
    *   The SASL mechanism to use for authentication.
    * @param bool $hide_authentication_replies
    *   Whether to hide authentication replies in the debug log (default: TRUE).
    *
-   * @throws \LibraryMarket\mstt\SMTP\Exception\AuthenticationException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\AuthenticationException
    *   If authentication fails.
-   * @throws \LibraryMarket\mstt\SMTP\Exception\WriteException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\WriteException
    *   If unable to write to the underlying stream socket.
    * @throws \RuntimeException
    *   If there is currently no active connection.
@@ -251,7 +251,7 @@ class Connection {
    *   The timeout period in seconds to use when reading from or writing to the
    *   underlying stream socket (default: 3.0).
    *
-   * @throws \LibraryMarket\mstt\SMTP\Exception\ConnectException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\ConnectException
    *   If the connection to the message submission agent failed.
    * @throws \LogicException
    *   If there is already an active connection.
@@ -367,7 +367,7 @@ class Connection {
   /**
    * Attempt to read a command response from the remote server.
    *
-   * @throws \LibraryMarket\mstt\SMTP\Exception\ReadException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\ReadException
    *   If unable to read from the underlying stream socket.
    * @throws \RuntimeException
    *   If there is currently no active connection.
@@ -435,7 +435,7 @@ class Connection {
    * This method should only be called after the remote server has been probed,
    * but prior to authentication.
    *
-   * @throws \LibraryMarket\mstt\SMTP\Exception\ReadException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\ReadException
    *   If unable to read from the underlying stream socket.
    * @throws \RuntimeException
    *   If there is currently no active connection.
@@ -498,15 +498,15 @@ class Connection {
    *
    * Crypto-related exceptions are only thrown when using STARTTLS.
    *
-   * @throws \LibraryMarket\mstt\SMTP\Exception\ClientGreetingException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\ClientGreetingException
    *   If the remote server did not send a valid response to the client
    *   greeting, or if the client greeting resulted in a bad response.
-   * @throws \LibraryMarket\mstt\SMTP\Exception\CryptoException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\CryptoException
    *   If crypto could not be enabled on the underlying stream socket.
-   * @throws \LibraryMarket\mstt\SMTP\Exception\ServerGreetingException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\ServerGreetingException
    *   If the remote server did not initiate the connection with a greeting, or
    *   if the remote server initiated the connection with an invalid greeting.
-   * @throws \LibraryMarket\mstt\SMTP\Exception\WriteException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\WriteException
    *   If unable to write to the underlying stream socket.
    * @throws \RuntimeException
    *   If there is currently no active connection.
@@ -558,7 +558,7 @@ class Connection {
   /**
    * Attempt to process the remote server's response to the client greeting.
    *
-   * @throws \LibraryMarket\mstt\SMTP\Exception\ClientGreetingException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\ClientGreetingException
    *   If the remote server did not send a valid response to the client
    *   greeting, or if the client greeting resulted in a bad response.
    * @throws \RuntimeException
@@ -606,7 +606,7 @@ class Connection {
    * The remote server's self-reported identity will be updated upon the first
    * successful invocation of this method.
    *
-   * @throws \LibraryMarket\mstt\SMTP\Exception\ServerGreetingException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\ServerGreetingException
    *   If the remote server did not initiate the connection with a greeting, or
    *   if the remote server initiated the connection with an invalid greeting.
    * @throws \RuntimeException
@@ -637,7 +637,7 @@ class Connection {
   /**
    * Attempt to read a line from the remote server.
    *
-   * @throws \LibraryMarket\mstt\SMTP\Exception\ReadException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\ReadException
    *   If unable to read from the underlying stream socket.
    * @throws \RuntimeException
    *   If there is currently no active connection.
@@ -662,10 +662,10 @@ class Connection {
   /**
    * Attempt to send the client greeting to the remote server.
    *
-   * @param \LibraryMarket\mstt\SMTP\ClientGreetingType $type
+   * @param \LibraryMarket\msadiag\SMTP\ClientGreetingType $type
    *   The type of client greeting to send to the remote server.
    *
-   * @throws \LibraryMarket\mstt\SMTP\Exception\WriteException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\WriteException
    *   If unable to write to the underlying stream socket.
    * @throws \RuntimeException
    *   If there is currently no active connection.
@@ -702,7 +702,7 @@ class Connection {
    * workaround to intercept any errors that occur when calling
    * \stream_socket_enable_crypto().
    *
-   * @throws \LibraryMarket\mstt\SMTP\Exception\CryptoException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\CryptoException
    *   If crypto could not be enabled on the underlying stream socket.
    * @throws \RuntimeException
    *   If there is currently no active connection.
@@ -765,7 +765,7 @@ class Connection {
    * @param string $line
    *   The line to send (excluding line endings).
    *
-   * @throws \LibraryMarket\mstt\SMTP\Exception\WriteException
+   * @throws \LibraryMarket\msadiag\SMTP\Exception\WriteException
    *   If unable to write to the underlying stream socket.
    * @throws \RuntimeException
    *   If there is currently no active connection.

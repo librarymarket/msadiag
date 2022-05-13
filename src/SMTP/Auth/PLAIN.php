@@ -2,9 +2,9 @@
 
 declare(strict_types = 1);
 
-namespace LibraryMarket\mstt\SMTP\Auth;
+namespace LibraryMarket\msadiag\SMTP\Auth;
 
-use LibraryMarket\mstt\SMTP\AuthenticationBase;
+use LibraryMarket\msadiag\SMTP\AuthenticationBase;
 
 /**
  * The 'PLAIN' SASL authentication mechanism.

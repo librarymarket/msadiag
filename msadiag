@@ -11,12 +11,12 @@ declare(strict_types = 1);
 require __DIR__ . '/vendor/autoload.php';
 
 $commands = [
-  new \LibraryMarket\mstt\Command\ProbeEncryptionCommand(),
-  new \LibraryMarket\mstt\Command\ProbeExtensionsCommand(),
-  new \LibraryMarket\mstt\Command\ValidateCommand(),
+  new \LibraryMarket\msadiag\Command\ProbeEncryptionCommand(),
+  new \LibraryMarket\msadiag\Command\ProbeExtensionsCommand(),
+  new \LibraryMarket\msadiag\Command\ValidateCommand(),
 ];
 
-$application = new \Symfony\Component\Console\Application('mstt');
+$application = new \Symfony\Component\Console\Application('msadiag');
 
 foreach ($commands as $command) {
   $application->add($command);
