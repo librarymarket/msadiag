@@ -585,7 +585,7 @@ class Connection {
       throw new ClientGreetingException('The client greeting resulted in a bad response from the remote server: ' . \implode("\r\n", $response->lines ?? []), $response->code);
     }
 
-    if (isset($response->lines) && is_array($response->lines)) {
+    if (isset($response->lines) && \is_array($response->lines)) {
       // Discard the first line of the response and reset the extension list.
       \array_shift($response->lines);
 
@@ -627,7 +627,7 @@ class Connection {
       throw new ServerGreetingException('The remote server initiated the connection with a bad greeting: ' . \implode("\r\n", $greeting->lines ?? []), $greeting->code);
     }
 
-    if (isset($greeting->lines) && is_array($greeting->lines)) {
+    if (isset($greeting->lines) && \is_array($greeting->lines)) {
       // Store the remote server's self-reported identity.
       // @phpstan-ignore-next-line
       $this->identity ??= \preg_replace('/\\s.*/', '', \array_shift($greeting->lines) ?? '');
