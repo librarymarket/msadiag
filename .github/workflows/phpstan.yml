@@ -1,0 +1,21 @@
+name: 'PHPStan'
+on: [push]
+jobs:
+  testing:
+    name: 'PHPStan'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Add ppa:ondrej/php repository'
+        run: 'sudo apt-add-repository -y ppa:ondrej/php'
+      - name: 'Install system dependencies'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: 'sudo apt-get -qq install composer php8.1-cli'
+      - name: 'Print enabled PHP extensions'
+        run: 'php -m'
+      - name: 'Checkout source code'
+        uses: actions/checkout@v2
+      - name: 'Install Composer dependencies'
+        run: 'composer install --no-interaction --no-progress'
+      - name: 'Run PHPStan tests'
+        run: './vendor/bin/phpstan analyze --no-progress --level=8 src'
