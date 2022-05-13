@@ -1,6 +1,7 @@
-![Testing](https://github.com/librarymarket/msadiag/workflows/PHPStan/badge.svg)
-
 # msadiag
+
+![PHPStan](https://github.com/librarymarket/msadiag/workflows/PHPStan/badge.svg)
+[![Maintainability](https://api.codeclimate.com/v1/badges/0c1ab96e14c39992196c/maintainability)](https://codeclimate.com/github/librarymarket/msadiag/maintainability)
 
 The Message Submission Agent Diagnostics tool (msadiag) facilitates testing the
 compatibility of third party message submission agents.
