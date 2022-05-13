@@ -249,7 +249,7 @@ class Connection {
    *   connection to the message submission agent (default: 3.0).
    * @param float $read_write_timeout
    *   The timeout period in seconds to use when reading from or writing to the
-   *   underlying stream socket (default: 3.0).
+   *   underlying stream socket (default: 15.0).
    *
    * @throws \LibraryMarket\msadiag\SMTP\Exception\ConnectException
    *   If the connection to the message submission agent failed.
