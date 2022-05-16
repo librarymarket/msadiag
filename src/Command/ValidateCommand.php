@@ -175,7 +175,7 @@ class ValidateCommand extends Command {
 
     $connection_type ??= $this->connectionType;
 
-    $connection = new Connection($address, $port, $connection_type, $context);
+    $connection = new Connection($address, $port, $connection_type);
     $connection->setStreamContext(\stream_context_get_default([
       'ssl' => [
         'SNI_enabled' => TRUE,
