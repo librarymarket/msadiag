@@ -80,7 +80,6 @@ class ValidateCommand extends Command {
       ' * The server must support SASL authentication via CRAM-MD5, LOGIN, or PLAIN.',
       ' * The server must require authentication to submit messages.',
       ' * The server must reject invalid credentials.',
-      ' * The server must accept valid credentials.',
       ' * The server must not require authentication to submit messages after successful authentication.',
     ]));
 
@@ -108,16 +107,18 @@ class ValidateCommand extends Command {
     }
 
     $tests = [
-      $this->testEncryptionProtocolVersion(...),
-      $this->testAuthenticationSupport(...),
-      $this->testAuthenticationMechanismSupport(...),
-      $this->testAuthenticationIsRequiredForSubmission(...),
-      $this->testAuthenticationWithInvalidCredentials(...),
-      $this->testAuthenticationWithValidCredentials(...),
+      'Test if TLSv1.2 or greater is being used' => $this->testEncryptionProtocolVersion(...),
+      'Test if the SMTP AUTH extension is supported' => $this->testAuthenticationSupport(...),
+      'Test if one of CRAM-MD5, LOGIN, or PLAIN are supported' => $this->testAuthenticationMechanismSupport(...),
+      'Test if authentication is required to submit messages' => $this->testAuthenticationIsRequiredForSubmission(...),
+      'Test if authentication fails with invalid credentials' => $this->testAuthenticationWithInvalidCredentials(...),
+      'Test if message submission is allowed after successful authentication' => $this->testSubmissionAfterSuccessfulAuthentication(...),
     ];
 
     if ($this->input->getOption('strict')) {
-      \array_unshift($tests, $this->testPlainTextAuthenticationIsNotAllowed(...));
+      $tests = [
+        'Test if authentication is not allowed via plain-text' => $this->testPlainTextAuthenticationIsNotAllowed(...),
+      ] + $tests;
     }
 
     // Run all remaining test cases.
@@ -207,11 +208,14 @@ class ValidateCommand extends Command {
   protected function runTests(callable ...$tests): bool {
     $result = TRUE;
 
-    foreach ($tests as $test) {
+    foreach ($tests as $name => $test) {
       try {
+        $this->output->write("{$name} ... ");
         $test();
+        $this->output->writeln('<info>PASS</info>');
       }
       catch (TestFailureException $e) {
+        $this->output->writeln('<error>FAIL</error>');
         $result = FALSE;
 
         if ($message = \preg_split('/\\r?\\n/', $e->getMessage())) {
@@ -238,15 +242,11 @@ class ValidateCommand extends Command {
    */
   protected function testAuthenticationIsRequiredForSubmission(): void {
     $connection = $this->getConnection();
-    $this->output->write('Testing if authentication is required to submit messages ... ');
 
     // Ensure that the server requires authentication to submit messages.
     if (!$connection->isAuthenticationRequired()) {
-      $this->output->writeln('<error>FAIL</error>');
       throw new TestFailureException($connection->debug());
     }
-
-    $this->output->writeln('<info>PASS</info>');
   }
 
   /**
@@ -257,16 +257,12 @@ class ValidateCommand extends Command {
    */
   protected function testAuthenticationMechanismSupport(): void {
     $connection = $this->getConnection();
-    $this->output->write('Testing if one of CRAM-MD5, LOGIN, or PLAIN are supported ... ');
 
     // Ensure that the server has at least one of the supported SASL mechanisms.
     $mechanism = \current(\array_intersect($connection->extensions['AUTH'] ?? [], self::SUPPORTED_SASL_MECHANISMS));
     if (!\is_string($mechanism)) {
-      $this->output->writeln('<error>FAIL</error>');
       throw new TestFailureException($connection->debug());
     }
-
-    $this->output->writeln('<info>PASS</info>');
   }
 
   /**
@@ -277,15 +273,11 @@ class ValidateCommand extends Command {
    */
   protected function testAuthenticationSupport(): void {
     $connection = $this->getConnection();
-    $this->output->write('Testing if the SMTP AUTH extension is supported ... ');
 
     // Ensure that the server supports the SMTP AUTH extension.
     if (!\array_key_exists('AUTH', $connection->extensions ?? [])) {
-      $this->output->writeln('<error>FAIL</error>');
       throw new TestFailureException($connection->debug());
     }
-
-    $this->output->writeln('<info>PASS</info>');
   }
 
   /**
@@ -296,7 +288,6 @@ class ValidateCommand extends Command {
    */
   protected function testAuthenticationWithInvalidCredentials(): void {
     $connection = $this->getConnection();
-    $this->output->write('Testing if authentication fails with invalid credentials ... ');
 
     try {
       // Retrieve an authentication mechanism with invalid credentials.
@@ -304,7 +295,6 @@ class ValidateCommand extends Command {
     }
     catch (AuthenticationException) {
       // If we reach this point, there are no compatible SASL mechanisms.
-      $this->output->writeln('<error>FAIL</error>');
       throw new TestFailureException($connection->debug());
     }
 
@@ -313,44 +303,10 @@ class ValidateCommand extends Command {
       $connection->authenticate($mechanism);
 
       // If we reach this point, the server accepted random credentials.
-      $this->output->writeln('<error>FAIL</error>');
       throw new TestFailureException($connection->debug());
     }
     catch (AuthenticationException) {
-      $this->output->writeln('<info>PASS</info>');
     }
-  }
-
-  /**
-   * Tests authentication requirements with valid credentials.
-   *
-   * @throws \LibraryMarket\msadiag\Command\Exception\TestFailureException
-   *   If the test does not succeed.
-   */
-  protected function testAuthenticationWithValidCredentials(): void {
-    $connection = $this->getConnection();
-    $this->output->write('Testing if authentication succeeds with valid credentials ... ');
-
-    try {
-      // Attempt to authenticate using the supplied credentials.
-      $connection->authenticate($this->getAuthenticationMechanism($connection->extensions['AUTH'] ?? [], $this->input->getArgument('username'), $this->input->getArgument('password')));
-      $this->output->writeln('<info>PASS</info>');
-    }
-    catch (AuthenticationException) {
-      // If we reach this point, the server did not accept our credentials.
-      $this->output->writeln('<error>FAIL</error>');
-      throw new TestFailureException($connection->debug());
-    }
-
-    $this->output->write('Testing if authentication is no longer required to submit messages ... ');
-
-    // Ensure that the server no longer requires authentication.
-    if ($connection->isAuthenticationRequired()) {
-      $this->output->writeln('<error>FAIL</error>');
-      throw new TestFailureException($connection->debug());
-    }
-
-    $this->output->writeln('<info>PASS</info>');
   }
 
   /**
@@ -361,16 +317,12 @@ class ValidateCommand extends Command {
    */
   protected function testEncryptionProtocolVersion(): void {
     $connection = $this->getConnection();
-    $this->output->write('Testing if TLSv1.2 or greater is being used ... ');
 
     // Ensure that the server supports a modern encryption protocol.
     $protocol = $connection->getMetadata()['crypto']['protocol'] ?? NULL;
     if (!\is_string($protocol) || \in_array($protocol, ['TLSv1', 'TLSv1.1'])) {
-      $this->output->writeln('<error>FAIL</error>');
       throw new TestFailureException($connection->debug());
     }
-
-    $this->output->writeln('<info>PASS</info>');
   }
 
   /**
@@ -382,14 +334,34 @@ class ValidateCommand extends Command {
   protected function testPlainTextAuthenticationIsNotAllowed(): void {
     if ($this->connectionType !== ConnectionType::TLS) {
       $connection = $this->getConnection(ConnectionType::PlainText);
-      $this->output->write('Testing if authentication is not allowed via plain-text ... ');
 
       if (\array_key_exists('AUTH', $connection->extensions ?? [])) {
-        $this->output->writeln('<error>FAIL</error>');
         throw new TestFailureException($connection->debug());
       }
+    }
+  }
 
-      $this->output->writeln('<info>PASS</info>');
+  /**
+   * Tests authentication requirements with valid credentials.
+   *
+   * @throws \LibraryMarket\msadiag\Command\Exception\TestFailureException
+   *   If the test does not succeed.
+   */
+  protected function testSubmissionAfterSuccessfulAuthentication(): void {
+    $connection = $this->getConnection();
+
+    try {
+      // Attempt to authenticate using the supplied credentials.
+      $connection->authenticate($this->getAuthenticationMechanism($connection->extensions['AUTH'] ?? [], $this->input->getArgument('username'), $this->input->getArgument('password')));
+    }
+    catch (AuthenticationException) {
+      // If we reach this point, the server did not accept our credentials.
+      throw new TestFailureException($connection->debug());
+    }
+
+    // Ensure that the server no longer requires authentication.
+    if ($connection->isAuthenticationRequired()) {
+      throw new TestFailureException($connection->debug());
     }
   }
 

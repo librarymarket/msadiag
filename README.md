@@ -16,7 +16,6 @@ and securely configured. The following tests are ran with `msadiag validate`:
 - The server must support SASL authentication via CRAM-MD5, LOGIN, or PLAIN.
 - The server must require authentication to submit messages.
 - The server must reject invalid credentials.
-- The server must accept valid credentials.
 - The server must not require authentication to submit messages after successful authentication.
 
 ## Installation
