@@ -174,24 +174,9 @@ class ValidateCommand extends Command {
     $port = \intval($this->input->getArgument('server-port'));
 
     $connection_type ??= $this->connectionType;
-    $context = $this->getStreamContext();
 
     $connection = new Connection($address, $port, $connection_type, $context);
-
-    $connection->connect();
-    $connection->probe();
-
-    return $connection;
-  }
-
-  /**
-   * Get the stream context to use for all connections.
-   *
-   * @return resource
-   *   The stream context to use for all connections.
-   */
-  protected function getStreamContext() {
-    return \stream_context_get_default([
+    $connection->setStreamContext(\stream_context_get_default([
       'ssl' => [
         'SNI_enabled' => TRUE,
         'allow_self_signed' => FALSE,
@@ -202,7 +187,12 @@ class ValidateCommand extends Command {
         'verify_peer' => TRUE,
         'verify_peer_name' => TRUE,
       ],
-    ]);
+    ]));
+
+    $connection->connect();
+    $connection->probe();
+
+    return $connection;
   }
 
   /**
