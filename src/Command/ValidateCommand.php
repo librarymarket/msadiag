@@ -73,7 +73,7 @@ class ValidateCommand extends Command {
       '',
       'A suitable message submission agent must satisfy the following criteria:',
       '',
-      ' * [Strict] The server must not allow authentication via plain-text connection.',
+      ' * The server must not allow authentication via plain-text connection (only with --strict).',
       ' * The server must support a modern TLS encryption protocol (TLSv1.2 or TLSv1.3).',
       ' * The server must use a valid certificate, verifiable using the Mozilla CA bundle.',
       ' * The server must support the SMTP AUTH extension.',
