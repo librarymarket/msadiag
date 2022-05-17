@@ -182,17 +182,51 @@ class ValidationTests {
   }
 
   /**
-   * Test if authentication is required to submit messages.
+   * Test if authentication is not allowed via plain-text.
    *
    * @throws \LibraryMarket\msadiag\Exception\TestFailureException
    *   If the test does not succeed.
    */
-  #[ValidationTest('Test if authentication is required to submit messages')]
-  protected function testAuthenticationIsRequiredForSubmission(): void {
+  #[ValidationTest('Test if authentication is not allowed via plain-text', TRUE)]
+  protected function testPlainTextAuthenticationIsNotAllowed(): void {
+    if ($this->connectionType !== ConnectionType::TLS) {
+      $connection = $this->getConnection(ConnectionType::PlainText);
+
+      if (\array_key_exists('AUTH', $connection->extensions ?? [])) {
+        throw new TestFailureException($connection->debug());
+      }
+    }
+  }
+
+  /**
+   * Test if TLSv1.2 or greater is being used.
+   *
+   * @throws \LibraryMarket\msadiag\Exception\TestFailureException
+   *   If the test does not succeed.
+   */
+  #[ValidationTest('Test if TLSv1.2 or greater is being used')]
+  protected function testEncryptionProtocolVersion(): void {
     $connection = $this->getConnection();
 
-    // Ensure that the server requires authentication to submit messages.
-    if (!$connection->isAuthenticationRequired()) {
+    // Ensure that the server supports a modern encryption protocol.
+    $protocol = $connection->getMetadata()['crypto']['protocol'] ?? NULL;
+    if (!\is_string($protocol) || \in_array($protocol, ['TLSv1', 'TLSv1.1'])) {
+      throw new TestFailureException($connection->debug());
+    }
+  }
+
+  /**
+   * Test if the SMTP AUTH extension is supported.
+   *
+   * @throws \LibraryMarket\msadiag\Exception\TestFailureException
+   *   If the test does not succeed.
+   */
+  #[ValidationTest('Test if the SMTP AUTH extension is supported')]
+  protected function testAuthenticationSupport(): void {
+    $connection = $this->getConnection();
+
+    // Ensure that the server supports the SMTP AUTH extension.
+    if (!\array_key_exists('AUTH', $connection->extensions ?? [])) {
       throw new TestFailureException($connection->debug());
     }
   }
@@ -215,17 +249,17 @@ class ValidationTests {
   }
 
   /**
-   * Test if the SMTP AUTH extension is supported.
+   * Test if authentication is required to submit messages.
    *
    * @throws \LibraryMarket\msadiag\Exception\TestFailureException
    *   If the test does not succeed.
    */
-  #[ValidationTest('Test if the SMTP AUTH extension is supported')]
-  protected function testAuthenticationSupport(): void {
+  #[ValidationTest('Test if authentication is required to submit messages')]
+  protected function testAuthenticationIsRequiredForSubmission(): void {
     $connection = $this->getConnection();
 
-    // Ensure that the server supports the SMTP AUTH extension.
-    if (!\array_key_exists('AUTH', $connection->extensions ?? [])) {
+    // Ensure that the server requires authentication to submit messages.
+    if (!$connection->isAuthenticationRequired()) {
       throw new TestFailureException($connection->debug());
     }
   }
@@ -257,40 +291,6 @@ class ValidationTests {
       throw new TestFailureException($connection->debug());
     }
     catch (AuthenticationException) {
-    }
-  }
-
-  /**
-   * Test if TLSv1.2 or greater is being used.
-   *
-   * @throws \LibraryMarket\msadiag\Exception\TestFailureException
-   *   If the test does not succeed.
-   */
-  #[ValidationTest('Test if TLSv1.2 or greater is being used')]
-  protected function testEncryptionProtocolVersion(): void {
-    $connection = $this->getConnection();
-
-    // Ensure that the server supports a modern encryption protocol.
-    $protocol = $connection->getMetadata()['crypto']['protocol'] ?? NULL;
-    if (!\is_string($protocol) || \in_array($protocol, ['TLSv1', 'TLSv1.1'])) {
-      throw new TestFailureException($connection->debug());
-    }
-  }
-
-  /**
-   * Test if authentication is not allowed via plain-text.
-   *
-   * @throws \LibraryMarket\msadiag\Exception\TestFailureException
-   *   If the test does not succeed.
-   */
-  #[ValidationTest('Test if authentication is not allowed via plain-text', TRUE)]
-  protected function testPlainTextAuthenticationIsNotAllowed(): void {
-    if ($this->connectionType !== ConnectionType::TLS) {
-      $connection = $this->getConnection(ConnectionType::PlainText);
-
-      if (\array_key_exists('AUTH', $connection->extensions ?? [])) {
-        throw new TestFailureException($connection->debug());
-      }
     }
   }
 
