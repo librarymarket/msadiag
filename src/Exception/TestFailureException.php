@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace LibraryMarket\msadiag\Command\Exception;
+namespace LibraryMarket\msadiag\Exception;
 
 /**
  * An exception for when a test fails.
