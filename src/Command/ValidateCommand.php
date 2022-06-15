@@ -117,7 +117,7 @@ class ValidateCommand extends Command {
     $results = TRUE;
 
     foreach ($validation->getTests() as $description => $test) {
-      if (!$this->runTest(\strval($description), $test)) {
+      if (!\is_callable($test) || !$this->runTest(\strval($description), $test)) {
         $results = FALSE;
       }
     }
