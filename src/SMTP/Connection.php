@@ -20,14 +20,13 @@ use LibraryMarket\msadiag\SMTP\Exception\WriteException;
  *    submission agent. Optionally specify a stream context.
  * 2. Invoke ::connect() which will establish either a plain-text or TLS
  *    connection based on the connection type specified during construction.
- * 3. Invoke ::probe() which will probe the remote server for:
- *    - Its self-reported identity (found in the server greeting)
- *    - Its supported ESMTP extensions (if any)
- *    If STARTTLS was specified as the connection type, crypto will be enabled
- *    and extension support will be probed again once crypto is negotiated.
- * 4. (Optional) Determine if authentication is required to submit messages by
- *    invoking ::isAuthenticationRequired().
- * 5. (Optional) Test credentials by invoking ::authenticate().
+ * 3. Invoke ::probe() which will probe the remote server for its self-reported
+ *    identity and supported ESMTP extensions. If STARTTLS was specified as the
+ *    connection type, crypto will be enabled and extension support will be
+ *    probed again automatically once crypto is negotiated.
+ * 4. Determine if authentication is required to submit messages by invoking
+ *    ::isAuthenticationRequired().
+ * 5. Test credentials by invoking ::authenticate().
  *
  * After the message submission agent has been probed, details about it will be
  * available in the public properties of this class.
