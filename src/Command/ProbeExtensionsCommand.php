@@ -75,13 +75,13 @@ class ProbeExtensionsCommand extends Command {
     $connection->setStreamContext(\stream_context_get_default([
       'ssl' => [
         'SNI_enabled' => TRUE,
-        'allow_self_signed' => FALSE,
+        'allow_self_signed' => TRUE,
         'cafile' => CaBundle::getBundledCaBundlePath(),
         'capath' => \dirname(CaBundle::getBundledCaBundlePath()),
         'crypto_method' => \STREAM_CRYPTO_METHOD_ANY_CLIENT,
         'disable_compression' => TRUE,
-        'verify_peer' => TRUE,
-        'verify_peer_name' => TRUE,
+        'verify_peer' => FALSE,
+        'verify_peer_name' => FALSE,
       ],
     ]));
 
