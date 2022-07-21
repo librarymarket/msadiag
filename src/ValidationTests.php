@@ -56,11 +56,18 @@ class ValidationTests {
   protected $port;
 
   /**
-   * TRUE if strict tests should be ran, FALSE to run only standard tests.
+   * TRUE if strict tests should be ran, FALSE otherwise (default: FALSE).
    *
    * @var bool
    */
   protected $runStrictTests;
+
+  /**
+   * The sender address to use for checking authentication (default: '').
+   *
+   * @var string
+   */
+  protected $sender;
 
   /**
    * The username to use for authentication.
@@ -83,14 +90,17 @@ class ValidationTests {
    * @param string $password
    *   The password to use for authentication.
    * @param bool $run_strict_tests
-   *   TRUE if strict tests should be ran, FALSE to run only standard tests.
+   *   TRUE if strict tests should be ran, FALSE otherwise (default: FALSE).
+   * @param string $sender
+   *   The sender address to use for checking authentication (default: '').
    */
-  public function __construct(string $address, int $port, bool $use_tls, string $username, string $password, bool $run_strict_tests = FALSE) {
+  public function __construct(string $address, int $port, bool $use_tls, string $username, string $password, bool $run_strict_tests = FALSE, string $sender = '') {
     $this->address = $address;
     $this->port = $port;
     $this->username = $username;
     $this->password = $password;
     $this->runStrictTests = $run_strict_tests;
+    $this->sender = $sender;
 
     if ($use_tls) {
       $this->connectionType = ConnectionType::TLS;
@@ -259,7 +269,7 @@ class ValidationTests {
     $connection = $this->getConnection();
 
     // Ensure that the server requires authentication to submit messages.
-    if (!$connection->isAuthenticationRequired()) {
+    if (!$connection->isAuthenticationRequired($this->sender)) {
       throw new TestFailureException($connection->debug());
     }
   }
@@ -314,7 +324,7 @@ class ValidationTests {
     }
 
     // Ensure that the server no longer requires authentication.
-    if ($connection->isAuthenticationRequired()) {
+    if ($connection->isAuthenticationRequired($this->sender)) {
       throw new TestFailureException($connection->debug());
     }
   }

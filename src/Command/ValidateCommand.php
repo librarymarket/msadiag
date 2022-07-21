@@ -60,6 +60,7 @@ class ValidateCommand extends Command {
     $this->addArgument('username', InputArgument::REQUIRED, 'The username to use for authentication');
     $this->addArgument('password', InputArgument::REQUIRED, 'The password to use for authentication');
 
+    $this->addOption('sender', NULL, InputOption::VALUE_REQUIRED, 'The sender address to use for checking authentication', '');
     $this->addOption('strict', NULL, InputOption::VALUE_NONE, 'Run strict tests in addition to all other tests');
     $this->addOption('tls', NULL, InputOption::VALUE_NONE, 'Use TLS for encryption instead of STARTTLS');
   }
@@ -93,8 +94,9 @@ class ValidateCommand extends Command {
     $username = $input->getArgument('username');
     $password = $input->getArgument('password');
     $strict = $input->getOption('strict');
+    $sender = $input->getOption('sender');
 
-    if (!$this->runTests(new ValidationTests($address, $port, $use_tls, $username, $password, $strict))) {
+    if (!$this->runTests(new ValidationTests($address, $port, $use_tls, $username, $password, $strict, $sender))) {
       return 1;
     }
 

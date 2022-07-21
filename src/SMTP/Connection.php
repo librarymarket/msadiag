@@ -431,9 +431,13 @@ class Connection {
   /**
    * Check if authentication is required to submit messages.
    *
-   * This method should only be called after the remote server has been probed,
-   * but prior to authentication.
+   * This method should only be called after the remote server has been probed.
    *
+   * @param string $sender
+   *   The sender address to use for checking authentication (default: '').
+   *
+   * @throws \InvalidArgumentException
+   *   If an invalid sender address was supplied.
    * @throws \LibraryMarket\msadiag\SMTP\Exception\ReadException
    *   If unable to read from the underlying stream socket.
    * @throws \RuntimeException
@@ -445,8 +449,12 @@ class Connection {
    * @return bool
    *   TRUE if authentication is required to submit messages, FALSE otherwise.
    */
-  public function isAuthenticationRequired(): bool {
-    $this->write('MAIL FROM:<>');
+  public function isAuthenticationRequired(string $sender = ''): bool {
+    if ($sender !== '' && FALSE === \filter_var($sender, \FILTER_VALIDATE_EMAIL)) {
+      throw new \InvalidArgumentException('An invalid sender address was supplied: ' . $sender);
+    }
+
+    $this->write("MAIL FROM:<{$sender}>");
 
     $response = $this->getResponse();
     if (!isset($response->code)) {
@@ -477,6 +485,10 @@ class Connection {
       return $result;
     }
     catch (\UnhandledMatchError $e) {
+      if ($response->code === 501 && $sender === '') {
+        throw new \UnexpectedValueException('A sender address is required to determine if authentication is required');
+      }
+
       throw new \UnexpectedValueException('An unexpected error occurred while attempting to determine if authentication is required to submit messages: ' . \implode("\r\n", $response->lines ?? []), $response->code);
     }
     finally {
