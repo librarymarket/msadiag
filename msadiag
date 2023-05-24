@@ -8,12 +8,14 @@
 
 declare(strict_types = 1);
 
-require $_composer_autoload_path ?? __DIR__ . '/vendor/autoload.php';
+require_once $_composer_autoload_path ?? __DIR__ . '/vendor/autoload.php';
+
+$connection_factory ??= new \LibraryMarket\msadiag\SMTP\ConnectionFactory();
 
 $commands = [
-  new \LibraryMarket\msadiag\Command\ProbeEncryptionCommand(),
-  new \LibraryMarket\msadiag\Command\ProbeExtensionsCommand(),
-  new \LibraryMarket\msadiag\Command\ValidateCommand(),
+  new \LibraryMarket\msadiag\Command\ProbeEncryptionCommand(connection_factory: $connection_factory),
+  new \LibraryMarket\msadiag\Command\ProbeExtensionsCommand(connection_factory: $connection_factory),
+  new \LibraryMarket\msadiag\Command\ValidateCommand(connection_factory: $connection_factory),
 ];
 
 $application = new \Symfony\Component\Console\Application('msadiag');

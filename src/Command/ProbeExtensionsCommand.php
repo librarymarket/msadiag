@@ -33,8 +33,9 @@ class ProbeExtensionsCommand extends Command {
   /**
    * {@inheritdoc}
    */
-  public function __construct(string $name = NULL) {
-    $this->connectionFactory = new ConnectionFactory();
+  public function __construct(string $name = NULL, ?ConnectionFactoryInterface $connection_factory = NULL) {
+    $this->connectionFactory = $connection_factory ??= new ConnectionFactory();
+
     parent::__construct($name);
   }
 
