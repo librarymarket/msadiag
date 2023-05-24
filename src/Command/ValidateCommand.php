@@ -114,7 +114,7 @@ class ValidateCommand extends Command {
       $input->getArgument('password'),
       $input->getOption('strict'),
       $input->getOption('sender'),
-      $this->connectionFactory
+      $this->connectionFactory,
     );
 
     if (!$this->runTests($validation)) {
