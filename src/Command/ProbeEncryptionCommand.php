@@ -6,7 +6,8 @@ namespace LibraryMarket\msadiag\Command;
 
 use Composer\CaBundle\CaBundle;
 
-use LibraryMarket\msadiag\SMTP\Connection;
+use LibraryMarket\msadiag\SMTP\ConnectionFactory;
+use LibraryMarket\msadiag\SMTP\ConnectionFactoryInterface;
 use LibraryMarket\msadiag\SMTP\ConnectionType;
 
 use Symfony\Component\Console\Command\Command;
@@ -20,6 +21,21 @@ use Symfony\Component\Console\Output\OutputInterface;
  * Probe the specified SMTP server for encryption information.
  */
 class ProbeEncryptionCommand extends Command {
+
+  /**
+   * The SMTP connection factory.
+   *
+   * @var \LibraryMarket\msadiag\SMTP\ConnectionFactoryInterface
+   */
+  public ConnectionFactoryInterface $connectionFactory;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __construct(string $name = NULL) {
+    $this->connectionFactory = new ConnectionFactory();
+    parent::__construct($name);
+  }
 
   /**
    * {@inheritdoc}
@@ -61,8 +77,7 @@ class ProbeEncryptionCommand extends Command {
     $address = $input->getArgument('server-address');
     $port = \intval($input->getArgument('server-port'));
 
-    $connection = new Connection($address, $port, $connection_type);
-    $connection->setStreamContext(\stream_context_get_default([
+    $connection = $this->connectionFactory->create($address, $port, $connection_type, \stream_context_get_default([
       'ssl' => [
         'SNI_enabled' => TRUE,
         'allow_self_signed' => TRUE,

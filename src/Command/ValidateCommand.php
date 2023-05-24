@@ -5,6 +5,8 @@ declare(strict_types = 1);
 namespace LibraryMarket\msadiag\Command;
 
 use LibraryMarket\msadiag\Exception\TestFailureException;
+use LibraryMarket\msadiag\SMTP\ConnectionFactory;
+use LibraryMarket\msadiag\SMTP\ConnectionFactoryInterface;
 use LibraryMarket\msadiag\ValidationTests;
 
 use Symfony\Component\Console\Command\Command;
@@ -18,6 +20,21 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * Validate the supplied SMTP server as a suitable message submission agent.
  */
 class ValidateCommand extends Command {
+
+  /**
+   * The SMTP connection factory.
+   *
+   * @var \LibraryMarket\msadiag\SMTP\ConnectionFactoryInterface
+   */
+  public ConnectionFactoryInterface $connectionFactory;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __construct(string $name = NULL) {
+    $this->connectionFactory = new ConnectionFactory();
+    parent::__construct($name);
+  }
 
   /**
    * The styled console input/output.
@@ -88,15 +105,18 @@ class ValidateCommand extends Command {
     $this->io = new SymfonyStyle($input, $output);
     $this->output = $output;
 
-    $address = $input->getArgument('server-address');
-    $port = \intval($input->getArgument('server-port'));
-    $use_tls = $input->getOption('tls');
-    $username = $input->getArgument('username');
-    $password = $input->getArgument('password');
-    $strict = $input->getOption('strict');
-    $sender = $input->getOption('sender');
+    $validation = new ValidationTests(
+      $input->getArgument('server-address'),
+      \intval($input->getArgument('server-port')),
+      $input->getOption('tls'),
+      $input->getArgument('username'),
+      $input->getArgument('password'),
+      $input->getOption('strict'),
+      $input->getOption('sender'),
+      $this->connectionFactory
+    );
 
-    if (!$this->runTests(new ValidationTests($address, $port, $use_tls, $username, $password, $strict, $sender))) {
+    if (!$this->runTests($validation)) {
       return 1;
     }
 

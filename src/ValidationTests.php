@@ -14,6 +14,8 @@ use LibraryMarket\msadiag\SMTP\Auth\PLAIN;
 use LibraryMarket\msadiag\SMTP\AuthenticationInterface;
 use LibraryMarket\msadiag\SMTP\Exception\AuthenticationException;
 use LibraryMarket\msadiag\SMTP\Connection;
+use LibraryMarket\msadiag\SMTP\ConnectionFactory;
+use LibraryMarket\msadiag\SMTP\ConnectionFactoryInterface;
 use LibraryMarket\msadiag\SMTP\ConnectionType;
 
 /**
@@ -33,6 +35,13 @@ class ValidationTests {
    * @var string
    */
   protected $address;
+
+  /**
+   * The SMTP connection factory.
+   *
+   * @var \LibraryMarket\msadiag\SMTP\ConnectionFactoryInterface
+   */
+  public ConnectionFactoryInterface $connectionFactory;
 
   /**
    * The type of connection to establish to the message submission agent.
@@ -93,8 +102,13 @@ class ValidationTests {
    *   TRUE if strict tests should be ran, FALSE otherwise (default: FALSE).
    * @param string $sender
    *   The sender address to use for checking authentication (default: '').
+   * @param \LibraryMarket\msadiag\SMTP\ConnectionFactoryInterface $connection_factory
+   *   The SMTP connection factory (optional).
    */
-  public function __construct(string $address, int $port, bool $use_tls, string $username, string $password, bool $run_strict_tests = FALSE, string $sender = '') {
+  public function __construct(string $address, int $port, bool $use_tls, string $username, string $password, bool $run_strict_tests = FALSE, string $sender = '', ?ConnectionFactoryInterface $connection_factory = NULL) {
+    $connection_factory ??= new ConnectionFactory();
+
+    $this->connectionFactory = $connection_factory;
     $this->address = $address;
     $this->port = $port;
     $this->username = $username;
@@ -146,10 +160,11 @@ class ValidationTests {
    *   A connection to the remote server.
    */
   protected function getConnection(?ConnectionType $connection_type = NULL): Connection {
+    $address = $this->address;
     $connection_type ??= $this->connectionType;
+    $port = $this->port;
 
-    $connection = new Connection($this->address, $this->port, $connection_type);
-    $connection->setStreamContext(\stream_context_get_default([
+    $connection = $this->connectionFactory->create($address, $port, $connection_type, \stream_context_get_default([
       'ssl' => [
         'SNI_enabled' => TRUE,
         'allow_self_signed' => FALSE,
