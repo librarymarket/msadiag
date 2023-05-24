@@ -106,9 +106,8 @@ class ValidationTests {
    *   The SMTP connection factory (optional).
    */
   public function __construct(string $address, int $port, bool $use_tls, string $username, string $password, bool $run_strict_tests = FALSE, string $sender = '', ?ConnectionFactoryInterface $connection_factory = NULL) {
-    $connection_factory ??= new ConnectionFactory();
+    $this->connectionFactory = $connection_factory ??= new ConnectionFactory();
 
-    $this->connectionFactory = $connection_factory;
     $this->address = $address;
     $this->port = $port;
     $this->username = $username;
