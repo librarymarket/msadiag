@@ -5,18 +5,14 @@ jobs:
     name: 'PHPStan'
     runs-on: ubuntu-latest
     steps:
-      - name: 'Add ppa:ondrej/php repository'
-        run: 'sudo apt-add-repository -y ppa:ondrej/php'
       - name: 'Install system dependencies'
         env:
           DEBIAN_FRONTEND: noninteractive
-        run: 'sudo apt-get -qq install curl php8.1-cli'
+        run: 'sudo apt-get -qq install composer curl'
       - name: 'Print enabled PHP extensions'
         run: 'php -m'
       - name: 'Checkout source code'
         uses: actions/checkout@v2
-      - name: 'Install Composer'
-        run: 'curl -o /usr/local/bin/composer https://getcomposer.org/download/latest-stable/composer.phar'
       - name: 'Install Composer dependencies'
         run: 'composer install --no-interaction --no-progress'
       - name: 'Run PHPStan tests'
