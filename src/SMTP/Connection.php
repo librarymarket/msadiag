@@ -596,15 +596,10 @@ class Connection {
       throw new ClientGreetingException('The client greeting resulted in a bad response from the remote server: ' . \implode("\r\n", $response->lines ?? []), $response->code);
     }
 
-    if (isset($response->lines) && \is_array($response->lines)) {
-      // Discard the first line of the response and reset the extension list.
-      \array_shift($response->lines);
-
-      // Build an associative array of extensions supported by the server.
-      foreach ($response->lines as $line) {
-        if ($extension = \preg_split('/\\s+/', $line)) {
-          $extensions[\strtoupper(\array_shift($extension))] = $extension;
-        }
+    // Build an associative array of extensions supported by the server.
+    foreach (\array_slice($response->lines, 1) as $line) {
+      if ($extension = \preg_split('/\\s+/', $line)) {
+        $extensions[\strtoupper(\array_shift($extension))] = $extension;
       }
     }
 
