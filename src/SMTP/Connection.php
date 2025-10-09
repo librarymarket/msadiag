@@ -352,7 +352,7 @@ class Connection {
    * @see \stream_get_meta_data()
    *   For a description of the return value.
    *
-   * @return mixed[]
+   * @return array{timed_out:bool,blocked:bool,eof:bool,unread_bytes:int,stream_type:string,wrapper_type:string,wrapper_data:mixed,mode:string,seekable:bool,uri?:string,crypto?:array{protocol?:string,cipher_name?:string,cipher_bits?:int,cipher_version?:string}}
    *   The metadata of the underlying stream socket.
    */
   public function getMetadata(): array {
