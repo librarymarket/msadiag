@@ -8,6 +8,8 @@ use LibraryMarket\msadiag\SMTP\AuthenticationBase;
 
 /**
  * The 'LOGIN' SASL authentication mechanism.
+ *
+ * @phpcs:disable Drupal.NamingConventions.ValidClassName.NoUpperAcronyms
  */
 class LOGIN extends AuthenticationBase {
 

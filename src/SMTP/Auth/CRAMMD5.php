@@ -8,6 +8,8 @@ use LibraryMarket\msadiag\SMTP\AuthenticationBase;
 
 /**
  * The 'CRAM-MD5' SASL authentication mechanism.
+ *
+ * @phpcs:disable Drupal.NamingConventions.ValidClassName.NoUpperAcronyms
  */
 class CRAMMD5 extends AuthenticationBase {
 
