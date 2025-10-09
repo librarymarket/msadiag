@@ -185,7 +185,7 @@ class ValidationTests {
   /**
    * Generate a list of callable test methods keyed by description.
    *
-   * @return \Generator
+   * @return \Generator<string,callable>
    *   A list of callable test methods keyed by description.
    */
   public function getTests(): \Generator {
