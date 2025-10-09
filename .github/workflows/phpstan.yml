@@ -16,4 +16,4 @@ jobs:
       - name: 'Install Composer dependencies'
         run: 'composer install --no-interaction --no-progress'
       - name: 'Run PHPStan tests'
-        run: './vendor/bin/phpstan analyze --no-progress --level=8 src'
+        run: './vendor/bin/phpstan analyze --no-progress --level=max src'
