@@ -101,7 +101,7 @@ class LOGIN extends AuthenticationBase {
 
       return $result;
     }
-    catch (\UnhandledMatchError $e) {
+    catch (\UnhandledMatchError) {
       throw new \LogicException('An unknown LOGIN challenge was sent by the remote server: ' . \var_export($challenge, TRUE));
     }
   }

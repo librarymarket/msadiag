@@ -67,7 +67,7 @@ class ProbeExtensionsCommand extends Command {
         'JSON' => fn ($output, $ext) => $output->writeln(\json_encode($ext)),
       };
     }
-    catch (\UnhandledMatchError $e) {
+    catch (\UnhandledMatchError) {
       throw new \InvalidArgumentException('The supplied format is invalid: ' . $input->getOption('format'));
     }
 
@@ -81,7 +81,7 @@ class ProbeExtensionsCommand extends Command {
         'TLS' => ConnectionType::TLS,
       };
     }
-    catch (\UnhandledMatchError $e) {
+    catch (\UnhandledMatchError) {
       throw new \InvalidArgumentException('The supplied encryption type is invalid: ' . $input->getOption('encryption-type'));
     }
 

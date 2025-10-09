@@ -66,7 +66,7 @@ class ProbeEncryptionCommand extends Command {
         'JSON' => fn ($output, $ext) => $output->writeln(\json_encode($ext)),
       };
     }
-    catch (\UnhandledMatchError $e) {
+    catch (\UnhandledMatchError) {
       throw new \InvalidArgumentException('The supplied format is invalid: ' . $input->getOption('format'));
     }
 

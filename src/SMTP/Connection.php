@@ -312,7 +312,7 @@ class Connection {
       try {
         $this->write('QUIT');
       }
-      catch (\Throwable $e) {
+      catch (\Throwable) {
       }
     }
 
@@ -484,7 +484,7 @@ class Connection {
 
       return $result;
     }
-    catch (\UnhandledMatchError $e) {
+    catch (\UnhandledMatchError) {
       if ($response->code === 501 && $sender === '') {
         throw new \UnexpectedValueException('A sender address is required to determine if authentication is required');
       }
@@ -496,7 +496,7 @@ class Connection {
         $this->write('RSET');
         $this->getResponse();
       }
-      catch (\Throwable $e) {
+      catch (\Throwable) {
       }
     }
   }
@@ -534,7 +534,7 @@ class Connection {
       $this->sendClientGreeting(ClientGreetingType::Extended);
       $extensions = $this->processClientGreetingResponse();
     }
-    catch (ClientGreetingException $e) {
+    catch (ClientGreetingException) {
       // Fall back to the basic Hello client greeting on failure.
       $this->sendClientGreeting(ClientGreetingType::Basic);
       $extensions = $this->processClientGreetingResponse();
@@ -586,7 +586,7 @@ class Connection {
     try {
       $response = $this->getResponse();
     }
-    catch (ReadException $e) {
+    catch (ReadException) {
     }
 
     if (!isset($response) || !isset($response->code)) {
@@ -627,7 +627,7 @@ class Connection {
     try {
       $greeting = $this->getResponse();
     }
-    catch (ReadException $e) {
+    catch (ReadException) {
     }
 
     // Ensure that the server sent a valid greeting before continuing.
@@ -727,7 +727,7 @@ class Connection {
       // crypto negotiation can begin or if an error occurred.
       $response = $this->getResponse();
     }
-    catch (ReadException | WriteException $e) {
+    catch (ReadException | WriteException) {
     }
 
     // Check if the server did not respond to our request to start crypto.
