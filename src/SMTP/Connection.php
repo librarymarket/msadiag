@@ -78,12 +78,10 @@ class Connection {
    * This property is not initialized until the message submission agent has
    * been probed for its supported extensions.
    *
+   * @var array<string,string[]>
+   *
    * @see ::probe()
    *   Invoke this method to initialize this property.
-   *
-   * @var array
-   *
-   * @phpstan-ignore-next-line
    */
   public readonly array $extensions;
 
@@ -93,12 +91,10 @@ class Connection {
    * This property is not initialized until the message submission agent has
    * been probed for its self-reported identity.
    *
-   * @see ::probe()
-   *   Invoke this method to initialize this property.
-   *
    * @var string
    *
-   * @phpstan-ignore-next-line
+   * @see ::probe()
+   *   Invoke this method to initialize this property.
    */
   public readonly string $identity;
 
@@ -562,8 +558,7 @@ class Connection {
     }
 
     // Store the remote server's supported extensions.
-    // @phpstan-ignore-next-line
-    $this->extensions ??= $extensions;
+    $this->extensions = $extensions;
   }
 
   /**
@@ -575,10 +570,8 @@ class Connection {
    * @throws \RuntimeException
    *   If there is currently no active connection.
    *
-   * @return array
+   * @return array<string,string[]>
    *   An associative array of extensions supported by the remote server.
-   *
-   * @phpstan-ignore-next-line
    */
   protected function processClientGreetingResponse(): array {
     $extensions = [];
