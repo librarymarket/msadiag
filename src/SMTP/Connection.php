@@ -638,11 +638,11 @@ class Connection {
       throw new ServerGreetingException('The remote server initiated the connection with a bad greeting: ' . \implode("\r\n", $greeting->lines ?? []), $greeting->code);
     }
 
-    if (isset($greeting->lines) && \is_array($greeting->lines)) {
-      // Store the remote server's self-reported identity.
-      // @phpstan-ignore-next-line
-      $this->identity ??= \preg_replace('/\\s.*/', '', \array_shift($greeting->lines) ?? '');
-    }
+    // Extract and store the server's self-reported identity.
+    $identity = \trim($greeting->lines[0] ?? '');
+    $identity = \substr($identity, 0, \strcspn($identity, ' '));
+
+    $this->identity = $identity;
   }
 
   /**
