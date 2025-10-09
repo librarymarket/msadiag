@@ -83,7 +83,8 @@ class Connection {
    * @see ::probe()
    *   Invoke this method to initialize this property.
    */
-  public readonly array $extensions;
+  // @phpcs:ignore Drupal.Commenting.VariableComment.Missing
+  public protected(set) array $extensions = [];
 
   /**
    * The self-reported identity of the message submission agent.
@@ -96,7 +97,8 @@ class Connection {
    * @see ::probe()
    *   Invoke this method to initialize this property.
    */
-  public readonly string $identity;
+  // @phpcs:ignore Drupal.Commenting.VariableComment.Missing
+  public protected(set) string $identity = '';
 
   /**
    * The port used by the message submission agent.
