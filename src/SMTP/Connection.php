@@ -194,7 +194,7 @@ class Connection {
    */
   public function authenticate(AuthenticationInterface $mechanism, bool $hide_authentication_replies = TRUE): void {
     // Ensure that authentication is supported by the remote server.
-    if (!isset($this->extensions) || !\array_key_exists('AUTH', $this->extensions) || !\is_array($this->extensions['AUTH'])) {
+    if (!\array_key_exists('AUTH', $this->extensions)) {
       throw new AuthenticationException('The remote server does not support the AUTH extension to SMTP');
     }
 
