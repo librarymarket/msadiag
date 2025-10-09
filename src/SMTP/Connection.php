@@ -212,7 +212,7 @@ class Connection {
     try {
       // Continue to delegate the authentication flow to the supplied mechanism
       // while the server returns an intermediate (i.e., 334) reply code.
-      for ($response = $this->getResponse(); isset($response->code, $response->lines) && $response->code === 334 && \is_array($response->lines); $response = $this->getResponse()) {
+      for ($response = $this->getResponse(); $response->code === 334; $response = $this->getResponse()) {
         // Process the response from the remote server and reply accordingly.
         $this->write($mechanism->process(\array_filter($response->lines, \is_string(...))));
       }
@@ -371,7 +371,7 @@ class Connection {
    * @throws \RuntimeException
    *   If there is currently no active connection.
    *
-   * @return object
+   * @return object{code:?int,lines:string[]}
    *   A first class object with the following properties:
    *   - code: the reply code for the response (int|null).
    *   - lines: an array of strings that represent the lines of the response.
@@ -383,7 +383,7 @@ class Connection {
     ];
 
     // Define an anonymous function used to parse reply lines from the server.
-    $parse = function ($response) {
+    $parse = function (string $response) {
       $expr = '/^(?P<code>[2-5][0-5][0-9])(?P<type>[- ])(?P<textstring>.*)$/';
 
       if (\preg_match($expr, $response, $matches)) {
