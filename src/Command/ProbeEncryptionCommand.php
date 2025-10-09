@@ -32,7 +32,7 @@ class ProbeEncryptionCommand extends Command {
   /**
    * {@inheritdoc}
    */
-  public function __construct(string $name = NULL, ?ConnectionFactoryInterface $connection_factory = NULL) {
+  public function __construct(?string $name = NULL, ?ConnectionFactoryInterface $connection_factory = NULL) {
     $this->connectionFactory = $connection_factory ??= new ConnectionFactory();
 
     parent::__construct($name);
