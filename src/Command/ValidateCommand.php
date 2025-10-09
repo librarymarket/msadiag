@@ -106,16 +106,23 @@ class ValidateCommand extends Command {
     $this->io = new SymfonyStyle($input, $output);
     $this->output = $output;
 
-    $validation = new ValidationTests(
-      $input->getArgument('server-address'),
-      \intval($input->getArgument('server-port')),
-      $input->getOption('tls'),
-      $input->getArgument('username'),
-      $input->getArgument('password'),
-      $input->getOption('strict'),
-      $input->getOption('sender'),
-      $this->connectionFactory,
-    );
+    $address = $input->getArgument('server-address');
+    $port = $input->getArgument('server-port');
+    $tls = !!$input->getOption('tls');
+    $username = $input->getArgument('username');
+    $password = $input->getArgument('password');
+    $strict = !!$input->getOption('strict');
+    $sender = $input->getOption('sender');
+
+    \assert(\is_string($address));
+    \assert(\is_numeric($port));
+    \assert(\is_string($username));
+    \assert(\is_string($password));
+    \assert(\is_string($sender));
+
+    $port = \intval($port);
+
+    $validation = new ValidationTests($address, $port, $tls, $username, $password, $strict, $sender, $this->connectionFactory);
 
     if (!$this->runTests($validation)) {
       return 1;
@@ -140,7 +147,7 @@ class ValidateCommand extends Command {
     $results = TRUE;
 
     foreach ($validation->getTests() as $description => $test) {
-      if (!\is_callable($test) || !$this->runTest(\strval($description), $test)) {
+      if (!$this->runTest(\strval($description), $test)) {
         $results = FALSE;
       }
     }

@@ -59,21 +59,25 @@ class ProbeExtensionsCommand extends Command {
    * {@inheritdoc}
    */
   protected function execute(InputInterface $input, OutputInterface $output): int {
+    $format = $input->getOption('format');
+    $connection_type = $input->getOption('encryption-type');
+
+    \assert(\is_string($format));
+    \assert(\is_string($connection_type));
+
     try {
-      $format = \strtoupper($input->getOption('format'));
-      $format = match ($format) {
+      $format = match (\strtoupper($format)) {
         'CONSOLE' => $this->printServerExtensionsConsole(...),
         'CSV' => $this->printServerExtensionsCommaSeparatedValue(...),
-        'JSON' => fn ($output, $ext) => $output->writeln(\json_encode($ext)),
+        'JSON' => fn (OutputInterface $output, array $ext) => $output->writeln(\json_encode($ext) ?: ''),
       };
     }
     catch (\UnhandledMatchError) {
-      throw new \InvalidArgumentException('The supplied format is invalid: ' . $input->getOption('format'));
+      throw new \InvalidArgumentException('The supplied format is invalid: ' . $format);
     }
 
     try {
-      $connection_type = \strtoupper($input->getOption('encryption-type'));
-      $connection_type = match ($connection_type) {
+      $connection_type = match (\strtoupper($connection_type)) {
         'AUTO' => ConnectionType::Auto,
         'NONE' => ConnectionType::PlainText,
         'PLAIN' => ConnectionType::PlainText,
@@ -82,11 +86,16 @@ class ProbeExtensionsCommand extends Command {
       };
     }
     catch (\UnhandledMatchError) {
-      throw new \InvalidArgumentException('The supplied encryption type is invalid: ' . $input->getOption('encryption-type'));
+      throw new \InvalidArgumentException('The supplied encryption type is invalid: ' . $connection_type);
     }
 
     $address = $input->getArgument('server-address');
-    $port = \intval($input->getArgument('server-port'));
+    $port = $input->getArgument('server-port');
+
+    \assert(\is_string($address));
+    \assert(\is_numeric($port));
+
+    $port = \intval($port);
 
     $connection = $this->connectionFactory->create($address, $port, $connection_type, \stream_context_get_default([
       'ssl' => [
@@ -119,10 +128,8 @@ class ProbeExtensionsCommand extends Command {
    *
    * @param \Symfony\Component\Console\Output\OutputInterface $output
    *   The output interface to which the table should be rendered.
-   * @param array $extensions
+   * @param array<string,string[]> $extensions
    *   An associative array of extensions supported by the remote server.
-   *
-   * @phpstan-ignore-next-line
    */
   protected function printServerExtensionsConsole(OutputInterface $output, array $extensions): void {
     if (empty($extensions)) {
@@ -155,10 +162,8 @@ class ProbeExtensionsCommand extends Command {
    *
    * @param \Symfony\Component\Console\Output\OutputInterface $output
    *   The output interface to which the CSV should be rendered.
-   * @param array $extensions
+   * @param array<string,string[]> $extensions
    *   An associative array of extensions supported by the remote server.
-   *
-   * @phpstan-ignore-next-line
    */
   protected function printServerExtensionsCommaSeparatedValue(OutputInterface $output, array $extensions): void {
     if (empty($extensions)) {

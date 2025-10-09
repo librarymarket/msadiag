@@ -58,16 +58,19 @@ class ProbeEncryptionCommand extends Command {
    * {@inheritdoc}
    */
   protected function execute(InputInterface $input, OutputInterface $output): int {
+    $format = $input->getOption('format');
+
+    \assert(\is_string($format));
+
     try {
-      $format = \strtoupper($input->getOption('format'));
-      $format = match ($format) {
+      $format = match (\strtoupper($format)) {
         'CONSOLE' => $this->printServerEncryptionConsole(...),
         'CSV' => $this->printServerEncryptionCommaSeparatedValue(...),
-        'JSON' => fn ($output, $ext) => $output->writeln(\json_encode($ext)),
+        'JSON' => fn (OutputInterface $output, array $ext) => $output->writeln(\json_encode($ext) ?: ''),
       };
     }
     catch (\UnhandledMatchError) {
-      throw new \InvalidArgumentException('The supplied format is invalid: ' . $input->getOption('format'));
+      throw new \InvalidArgumentException('The supplied format is invalid: ' . $format);
     }
 
     $connection_type = ConnectionType::STARTTLS;
@@ -76,7 +79,12 @@ class ProbeEncryptionCommand extends Command {
     }
 
     $address = $input->getArgument('server-address');
-    $port = \intval($input->getArgument('server-port'));
+    $port = $input->getArgument('server-port');
+
+    \assert(\is_string($address));
+    \assert(\is_numeric($port));
+
+    $port = \intval($port);
 
     $connection = $this->connectionFactory->create($address, $port, $connection_type, \stream_context_get_default([
       'ssl' => [
@@ -114,10 +122,8 @@ class ProbeEncryptionCommand extends Command {
    *
    * @param \Symfony\Component\Console\Output\OutputInterface $output
    *   The output interface to which the table should be rendered.
-   * @param array $crypto
+   * @param array{protocol:string,cipher_name:string,cipher_bits:int|string,cipher_version:string} $crypto
    *   An associative array of cryptographic information.
-   *
-   * @phpstan-ignore-next-line
    */
   protected function printServerEncryptionConsole(OutputInterface $output, array $crypto): void {
     $table = new Table($output);
@@ -137,10 +143,8 @@ class ProbeEncryptionCommand extends Command {
    *
    * @param \Symfony\Component\Console\Output\OutputInterface $output
    *   The output interface to which the CSV should be rendered.
-   * @param array $crypto
+   * @param array{protocol:string,cipher_name:string,cipher_bits:int|string,cipher_version:string} $crypto
    *   An associative array of cryptographic information.
-   *
-   * @phpstan-ignore-next-line
    */
   protected function printServerEncryptionCommaSeparatedValue(OutputInterface $output, array $crypto): void {
     if (!$fh = \fopen('php://memory', 'r+')) {
