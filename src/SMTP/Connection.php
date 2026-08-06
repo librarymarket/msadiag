@@ -487,7 +487,7 @@ class Connection {
         throw new \UnexpectedValueException('A sender address is required to determine if authentication is required');
       }
 
-      throw new \UnexpectedValueException('An unexpected error occurred while attempting to determine if authentication is required to submit messages: ' . \implode("\r\n", $response->lines ?? []), $response->code);
+      return FALSE;
     }
     finally {
       try {
