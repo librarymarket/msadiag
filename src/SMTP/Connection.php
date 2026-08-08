@@ -273,7 +273,7 @@ class Connection {
 
       // Attempt to open a stream socket client.
       if (!$socket = @\stream_socket_client($this->getClientAddress(), $error_code, $error_message, $connect_timeout, context: $this->getStreamContext())) {
-        throw new ConnectException('Unable to connect to the message submission agent: ' . $error_message, $error_code);
+        throw new ConnectException('Unable to connect to the message submission agent: ' . $error_message, $error_code ?? 0);
       }
     }
     finally {
